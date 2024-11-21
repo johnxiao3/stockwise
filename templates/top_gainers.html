@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Top Stock Price Increase Change</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        table { 
+            border-collapse: collapse; 
+            margin: 20px 0; 
+            width: 100%;
+        }
+        th, td { 
+            border: 1px solid #ddd; 
+            padding: 12px; 
+            text-align: left; 
+        }
+        th { 
+            background-color: #f2f2f2; 
+            font-weight: bold;
+        }
+        tr:nth-child(even) { 
+            background-color: #f9f9f9; 
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-link {
+            display: inline-block;
+            padding: 8px 15px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .back-link:hover {
+            background-color: #5a6268;
+        }
+        .percentage-positive {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .percentage-negative {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .stock-link {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .stock-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-section">
+            <h1>Top 20 Price Increase Change (Last Week)</h1>
+            <a href="{{ url_for('index') }}" class="back-link">Back to Home</a>
+        </div>
+        
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>Symbol</th>
+                <th>Open ($)</th>
+                <th>Close ($)</th>
+                <th>Change (%)</th>
+                <th>Vol Δ Week 1 (%)</th>
+                <th>Vol Δ Week 2 (%)</th>
+                <th>Vol Δ Week 3 (%)</th>
+                <th>Vol Δ Week 4 (%)</th>
+            </tr>
+            {% for stock in top_stocks %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <a href="{{ url_for('stock', symbol=stock.symbol) }}" class="stock-link">
+                        {{ stock.symbol }}
+                    </a>
+                </td>
+                <td>{{ "%.2f"|format(stock.open) }}</td>
+                <td>{{ "%.2f"|format(stock.close) }}</td>
+                <td class="{{ 'percentage-positive' if stock.percentage_change > 0 else 'percentage-negative' }}">
+                    {{ "%.2f"|format(stock.percentage_change) }}%
+                </td>
+                <td class="{{ 'percentage-positive' if stock.vol_change_week1 > 0 else 'percentage-negative' }}">
+                    {{ "%.2f"|format(stock.vol_change_week1) }}%
+                </td>
+                <td class="{{ 'percentage-positive' if stock.vol_change_week2 > 0 else 'percentage-negative' }}">
+                    {{ "%.2f"|format(stock.vol_change_week2) }}%
+                </td>
+                <td class="{{ 'percentage-positive' if stock.vol_change_week3 > 0 else 'percentage-negative' }}">
+                    {{ "%.2f"|format(stock.vol_change_week3) }}%
+                </td>
+                <td class="{{ 'percentage-positive' if stock.vol_change_week4 > 0 else 'percentage-negative' }}">
+                    {{ "%.2f"|format(stock.vol_change_week4) }}%
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>

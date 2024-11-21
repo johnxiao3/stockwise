@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ symbol }} - Stock Details</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        .chart-container {
+            width: 98%;
+            height: 600px;
+            margin: 20px 0;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .search-box {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .search-box input {
+            padding: 8px;
+            width: 200px;
+            margin-right: 10px;
+        }
+        .search-box button {
+            padding: 8px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .search-box button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-box">
+        <form id="searchForm" onsubmit="return false;">
+            <input type="text" id="symbolInput" placeholder="Enter stock symbol (e.g., AAPL)" required>
+            <button onclick="searchStock()">Search</button>
+        </form>
+    </div>
+
+    <div class="chart-container" id="daily-chart"></div>
+    <div class="chart-container" id="weekly-chart"></div>
+
+    <script>
+        function calculatePercentageChange(closeValues) {
+            const percentChanges = new Array(closeValues.length);
+            percentChanges[0] = 0; // First point has no previous value
+            
+            for (let i = 1; i < closeValues.length; i++) {
+                const prevClose = closeValues[i - 1];
+                const currentClose = closeValues[i];
+                percentChanges[i] = ((currentClose - prevClose) / prevClose * 100).toFixed(2);
+            }
+            return percentChanges;
+        }
+
+        function createCandlestickChart(containerId, data, timeframe) {
+            // Calculate percentage changes for price
+            const percentChanges = calculatePercentageChange(data.close);
+            const priceHoverText = [];
+            const colors = [];
+            const macdHoverText = [];
+
+            const reversedDif = [...data.macd.dif].reverse();
+            const reversedDea = [...data.macd.dea].reverse();
+            const reversedMacd = [...data.macd.macd].reverse();
+            
+            
+            for (let i = 0; i < data.dates.length; i++) {
+                const isIncreasing = i === 0 ? false : data.close[i] > data.close[i - 1];
+                const changeText = i === 0 ? 'N/A' : `${percentChanges[i]}%`;
+                const color = isIncreasing ? '#008800' : '#FF0000';
+                
+                // Price hover text
+                priceHoverText.push(`<b>Date:</b> ${data.dates[i]}<br>` +
+                            `<b>Open:</b> $${data.open[i].toFixed(2)}<br>` +
+                            `<b>High:</b> $${data.high[i].toFixed(2)}<br>` +
+                            `<b>Low:</b> $${data.low[i].toFixed(2)}<br>` +
+                            `<b>Close:</b> $${data.close[i].toFixed(2)}<br>` +
+                            `<b>Change:</b> ${changeText}`);
+
+                // MACD hover text (updated terminology)
+                macdHoverText.push(`<b>Date:</b> ${data.dates[i]}<br>` +
+                                `<b>DIF:</b> ${data.macd.dif[i].toFixed(2)}<br>` +
+                                `<b>DEA:</b> ${data.macd.dea[i].toFixed(2)}<br>` +
+                                `<b>MACD:</b> ${data.macd.macd[i].toFixed(2)}`);
+                
+                colors.push(color);
+            }
+
+            // Candlestick trace
+            var candlestickTrace = {
+                x: data.dates,
+                open: data.open,
+                high: data.high,
+                low: data.low,
+                close: data.close,
+                type: 'candlestick',
+                name: 'OHLC',
+                text: priceHoverText,
+                hoverinfo: 'text',
+                increasing: {
+                    line: { color: '#00AA00' },
+                    fillcolor: 'rgba(255, 255, 255, 0.7)'
+                },
+                decreasing: {
+                    line: { color: '#FF0000' },
+                    fillcolor: 'rgba(255, 0, 0, 0.7)'
+                },
+                hoverlabel: {
+                    bgcolor: 'white',
+                    bordercolor: colors,
+                    font: { color: colors, size: 12 }
+                },
+                yaxis: 'y'
+            };
+
+            // MACD traces
+            var difTrace = {
+                x: data.dates,
+                y: reversedDif,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'DIF',
+                line: { color: '#0000FF', width: 1.5 },
+                text: macdHoverText,
+                hoverinfo: 'text',
+                yaxis: 'y2'
+            };
+
+            var deaTrace = {
+                x: data.dates,
+                y: reversedDea,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'DEA',
+                line: { color: '#FFA500', width: 1.5 },
+                text: macdHoverText,
+                hoverinfo: 'none',  // Disable individual hover for DEA line
+                yaxis: 'y2'
+            };
+
+            var macdHistTrace = {
+                x: data.dates,
+                y: reversedMacd,
+                type: 'bar',
+                name: 'MACD',
+                marker: {
+                    color: colors,
+                    opacity: 0.7
+                },
+                hoverinfo: 'none',  // Disable individual hover for histogram
+                yaxis: 'y2'
+            };
+
+            var layout = {
+                title: {
+                    text: `{{ symbol }} ${timeframe} Stock Price`,
+                    font: { size: 24 }
+                },
+                yaxis: {
+                    title: 'Stock Price ($)',
+                    domain: [0.35, 1],
+                    showline: true,
+                    linewidth: 2,
+                    linecolor: 'black',
+                    mirror: true,
+                    gridcolor: '#E1E1E1',
+                    zerolinecolor: '#969696'
+                },
+                yaxis2: {
+                    title: 'MACD',
+                    domain: [0, 0.35],
+                    showline: true,
+                    linewidth: 2,
+                    linecolor: 'black',
+                    mirror: true,
+                    gridcolor: '#E1E1E1',
+                    zerolinecolor: '#969696',
+                    showspikes: false
+                },
+                xaxis: {
+                    rangeslider: {visible: true, thickness: 0.05},
+                    showline: true,
+                    linewidth: 2,
+                    linecolor: 'black',
+                    mirror: true,
+                    gridcolor: '#E1E1E1',
+                    zerolinecolor: '#969696',
+                    type: 'category',
+                    categoryorder: 'category ascending',
+                    tickmode: 'linear',
+                    dtick: 10,
+                    tickangle: 0,
+                    domain: [0, 1],
+                    rangebreaks: [{
+                        pattern: 'day of week',
+                        bounds: ['sat', 'mon']
+                    }]
+                },
+                paper_bgcolor: 'white',
+                plot_bgcolor: 'white',
+                margin: {
+                    l: 60,
+                    r: 40,
+                    t: 40,
+                    b: 0
+                },
+                showlegend: false,
+                hovermode: 'x',
+                shapes: [
+                    {
+                        type: 'rect',
+                        x0: 0,
+                        x1: 1,
+                        y0: 0,
+                        y1: 0,
+                        xref: 'paper',
+                        yref: 'paper',
+                        line: {
+                            color: 'black',
+                            width: 2,
+                        },
+                        layer: 'below'
+                    }
+                ]
+            };
+
+            var config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'eraseshape']
+            };
+
+            Plotly.newPlot(containerId, [candlestickTrace, difTrace, deaTrace, macdHistTrace], layout, config);
+
+}
+       // Update your data passing to match the new structure:
+        createCandlestickChart('daily-chart', {
+            dates: {{ plot.daily.dates | tojson }},
+            open: {{ plot.daily.open | tojson }},
+            high: {{ plot.daily.high | tojson }},
+            low: {{ plot.daily.low | tojson }},
+            close: {{ plot.daily.close | tojson }},
+            macd: {
+                dif: {{ plot.daily.macd.dif | tojson }},
+                dea: {{ plot.daily.macd.dea | tojson }},
+                macd: {{ plot.daily.macd.macd | tojson }}
+            }
+        }, 'Daily');
+
+        // Do the same for weekly chart
+        createCandlestickChart('weekly-chart', {
+            dates: {{ plot.weekly.dates | tojson }},
+            open: {{ plot.weekly.open | tojson }},
+            high: {{ plot.weekly.high | tojson }},
+            low: {{ plot.weekly.low | tojson }},
+            close: {{ plot.weekly.close | tojson }},
+            macd: {
+                dif: {{ plot.weekly.macd.dif | tojson }},
+                dea: {{ plot.weekly.macd.dea | tojson }},
+                macd: {{ plot.weekly.macd.macd | tojson }}
+            }
+        }, 'Weekly');
+
+        function searchStock() {
+            const symbol = document.getElementById('symbolInput').value.toUpperCase();
+            if (!symbol) {
+                alert('Please enter a stock symbol');
+                return;
+            }
+            window.location.href = `/stockdetail/${symbol}`;
+        }
+    </script>
+</body>
+</html>

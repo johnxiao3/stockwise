@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Top Volume Increase Change</title>
+<style>
+body { font-family: Arial, sans-serif; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+table {
+    border-collapse: collapse;
+    margin: 20px 0;
+    width: 100%;
+}
+th, td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: left;
+}
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+tr:hover {
+    background-color: #f5f5f5;
+}
+.header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+}
+.header-section h1 {
+    margin: 0;
+}
+.home-link {
+    display: inline-block;
+    padding: 8px 15px;
+    background-color: #6c757d;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+.home-link:hover {
+    background-color: #5a6268;
+}
+.percentage-positive {
+    color: #28a745;
+    font-weight: bold;
+}
+.percentage-negative {
+    color: #dc3545;
+    font-weight: bold;
+}
+.stock-link {
+    color: #007bff;
+    text-decoration: none;
+}
+.stock-link:hover {
+    text-decoration: underline;
+}
+.last-update {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 5px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header-section">
+        <div>
+            <h1>Top 20 Volume Increase Change</h1>
+            <div class="last-update">Last Week's Volume Changes</div>
+        </div>
+        <a href="{{ url_for('index') }}" class="home-link">Back to Home</a>
+    </div>
+    <table>
+        <tr>
+            <th>Rank</th>
+            <th>Symbol</th>
+            <th>Current Open ($)</th>
+            <th>Current Close ($)</th>
+            <th>Current Volume</th>
+            <th>Previous Volume</th>
+            <th>Volume Change (%)</th>
+        </tr>
+        {% for stock in top_stocks %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td>
+                <a href="{{ url_for('stock', symbol=stock.symbol) }}" class="stock-link">
+                    {{ stock.symbol }}
+                </a>
+            </td>
+            <td>{{ "%.2f"|format(stock.current_open) }}</td>
+            <td>{{ "%.2f"|format(stock.current_close) }}</td>
+            <td>{{ "{:,}".format(stock.current_volume) }}</td>
+            <td>{{ "{:,}".format(stock.prev_volume) }}</td>
+            <td class="{{ 'percentage-positive' if stock.volume_change > 0 else 'percentage-negative' }}">
+                {{ "%.2f"|format(stock.volume_change) }}%
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+</body>
+</html>

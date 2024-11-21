@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Filter</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Navigation -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Stock Filter</h1>
+            <a href="/" class="bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-md transition-colors">
+                Back to Home
+            </a>
+        </div>
+        
+        <!-- Filter Form -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <form id="filterForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Minimum Price ($)</label>
+                    <input type="number" name="min_price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="0" step="0.01">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Minimum Volume</label>
+                    <input type="number" name="min_volume" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="0">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Min Price Change (%)</label>
+                    <input type="number" name="min_price_change" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="-100">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Sort By</label>
+                    <select name="sort_by" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="volume">Volume</option>
+                        <option value="price">Price</option>
+                        <option value="volume_change">Volume Change %</option>
+                        <option value="price_change">Price Change %</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Sort Order</label>
+                    <select name="sort_order" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                        <option value="DESC">Descending</option>
+                        <option value="ASC">Ascending</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Limit Results</label>
+                    <input type="number" name="limit" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" value="50">
+                </div>
+                
+                <div class="md:col-span-3">
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Results Table -->
+        <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symbol</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Week Open</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Week Close</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Week Volume</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume Change %</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price Change %</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Results will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function getStockUrl(symbol) {
+            return `{{ url_for('stock', symbol='SYMBOL_PLACEHOLDER') }}`.replace('SYMBOL_PLACEHOLDER', symbol);
+        }
+
+        document.getElementById('filterForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loading cursor
+            document.body.style.cursor = 'wait';
+            
+            // Get form data
+            const formData = new FormData(e.target);
+            const params = new URLSearchParams(formData);
+            
+            try {
+                const response = await fetch(`/api/filtered_stocks?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const tbody = document.getElementById('resultsBody');
+                    tbody.innerHTML = data.data.map(stock => `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <a href="${getStockUrl(stock.symbol)}" class="text-blue-600 hover:text-blue-800">
+                                    ${stock.symbol || ''}
+                                </a>
+                                </td>
+                            <td class="px-6 py-4 whitespace-nowrap">$${(stock.week_open || 0).toFixed(2)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">$${(stock.week_close || 0).toFixed(2)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${(stock.week_volume || 0).toLocaleString()}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${(stock.volume_change_pct || 0).toFixed(2)}%</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${(stock.price_change_pct || 0).toFixed(2)}%</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    alert('Error loading data: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                // Reset cursor
+                document.body.style.cursor = 'default';
+            }
+        });
+    </script>
+</body>
+</html>
