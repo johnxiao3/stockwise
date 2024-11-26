@@ -17,13 +17,29 @@
             padding: 20px;
             background-color: #f8f9fa;
             border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .search-box input {
             padding: 8px;
             width: 200px;
             margin-right: 10px;
         }
-        .search-box button {
+        .nav-button {
+            padding: 8px 15px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav-button:hover {
+            background-color: #545b62;
+        }
+        .search-button {
             padding: 8px 15px;
             background-color: #007bff;
             color: white;
@@ -31,16 +47,24 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        .search-box button:hover {
+        .search-button:hover {
             background-color: #0056b3;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
         }
     </style>
 </head>
 <body>
     <div class="search-box">
-        <form id="searchForm" onsubmit="return false;">
+        <div class="button-group">
+            <a href="javascript:history.back()" class="nav-button">Back</a>
+            <a href="/" class="nav-button">Home</a>
+        </div>
+        <form id="searchForm" onsubmit="return false;" style="display: inline-flex; align-items: center;">
             <input type="text" id="symbolInput" placeholder="Enter stock symbol (e.g., AAPL)" required>
-            <button onclick="searchStock()">Search</button>
+            <button class="search-button" onclick="searchStock()">Search</button>
         </form>
     </div>
 
@@ -67,17 +91,15 @@
             const colors = [];
             const macdHoverText = [];
 
-            const reversedDif = [...data.macd.dif].reverse();
-            const reversedDea = [...data.macd.dea].reverse();
-            const reversedMacd = [...data.macd.macd].reverse();
-            
+            const reversedDif =data.macd.dif // [...data.macd.dif].reverse();
+            const reversedDea =data.macd.dea // [...data.macd.dea].reverse();
+            const reversedMacd =data.macd.macd // [...data.macd.macd].reverse();
             
             for (let i = 0; i < data.dates.length; i++) {
                 const isIncreasing = i === 0 ? false : data.close[i] > data.close[i - 1];
                 const changeText = i === 0 ? 'N/A' : `${percentChanges[i]}%`;
                 const color = isIncreasing ? '#008800' : '#FF0000';
                 
-                // Price hover text
                 priceHoverText.push(`<b>Date:</b> ${data.dates[i]}<br>` +
                             `<b>Open:</b> $${data.open[i].toFixed(2)}<br>` +
                             `<b>High:</b> $${data.high[i].toFixed(2)}<br>` +
@@ -85,7 +107,6 @@
                             `<b>Close:</b> $${data.close[i].toFixed(2)}<br>` +
                             `<b>Change:</b> ${changeText}`);
 
-                // MACD hover text (updated terminology)
                 macdHoverText.push(`<b>Date:</b> ${data.dates[i]}<br>` +
                                 `<b>DIF:</b> ${data.macd.dif[i].toFixed(2)}<br>` +
                                 `<b>DEA:</b> ${data.macd.dea[i].toFixed(2)}<br>` +
@@ -94,9 +115,9 @@
                 colors.push(color);
             }
 
-            // Candlestick trace
             var candlestickTrace = {
-                x: data.dates,
+                //x: data.dates,
+                x: Array.from({length: data.dates.length}, (_, i) => i),  // Use indices for x values
                 open: data.open,
                 high: data.high,
                 low: data.low,
@@ -121,9 +142,8 @@
                 yaxis: 'y'
             };
 
-            // MACD traces
             var difTrace = {
-                x: data.dates,
+                x: Array.from({length: data.dates.length}, (_, i) => i),
                 y: reversedDif,
                 type: 'scatter',
                 mode: 'lines',
@@ -135,19 +155,19 @@
             };
 
             var deaTrace = {
-                x: data.dates,
+                x: Array.from({length: data.dates.length}, (_, i) => i),
                 y: reversedDea,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'DEA',
                 line: { color: '#FFA500', width: 1.5 },
                 text: macdHoverText,
-                hoverinfo: 'none',  // Disable individual hover for DEA line
+                hoverinfo: 'none',
                 yaxis: 'y2'
             };
 
             var macdHistTrace = {
-                x: data.dates,
+                x: Array.from({length: data.dates.length}, (_, i) => i),
                 y: reversedMacd,
                 type: 'bar',
                 name: 'MACD',
@@ -155,7 +175,7 @@
                     color: colors,
                     opacity: 0.7
                 },
-                hoverinfo: 'none',  // Disable individual hover for histogram
+                hoverinfo: 'none',
                 yaxis: 'y2'
             };
 
@@ -172,7 +192,8 @@
                     linecolor: 'black',
                     mirror: true,
                     gridcolor: '#E1E1E1',
-                    zerolinecolor: '#969696'
+                    zerolinecolor: '#969696',
+
                 },
                 yaxis2: {
                     title: 'MACD',
@@ -188,17 +209,30 @@
                 xaxis: {
                     rangeslider: {visible: true, thickness: 0.05},
                     showline: true,
-                    linewidth: 2,
+                    linewidth: 1,
                     linecolor: 'black',
                     mirror: true,
-                    gridcolor: '#E1E1E1',
+                    gridcolor: '#AAAAAA',
+                    gridwidth: 2,
                     zerolinecolor: '#969696',
-                    type: 'category',
-                    categoryorder: 'category ascending',
-                    tickmode: 'linear',
-                    dtick: 10,
+                    type: 'linear',
+                    showgrid: true,
+                    dtick: 10,            // Major grid every 10 points
+                    tick0: 0,
+                    tickmode: 'array',    
+                    ticktext: data.dates.filter((_, i) => i % 10 === 0),
+                    tickvals: Array.from({length: Math.ceil(data.dates.length/10)}, (_, i) => i * 10),
+                    minor: {              // Changed to object notation
+                        tickmode: 'linear',
+                        nticks: data.dates.length,
+                        showgrid: true,
+                        gridcolor: '#CCCCCC',
+                        gridwidth: 0.5,
+                    },
                     tickangle: 0,
+                    side: 'bottom',
                     domain: [0, 1],
+                    range: [-0.5, data.dates.length - 0.5],
                     rangebreaks: [{
                         pattern: 'day of week',
                         bounds: ['sat', 'mon']
@@ -239,9 +273,8 @@
             };
 
             Plotly.newPlot(containerId, [candlestickTrace, difTrace, deaTrace, macdHistTrace], layout, config);
+        }
 
-}
-       // Update your data passing to match the new structure:
         createCandlestickChart('daily-chart', {
             dates: {{ plot.daily.dates | tojson }},
             open: {{ plot.daily.open | tojson }},
@@ -255,7 +288,6 @@
             }
         }, 'Daily');
 
-        // Do the same for weekly chart
         createCandlestickChart('weekly-chart', {
             dates: {{ plot.weekly.dates | tojson }},
             open: {{ plot.weekly.open | tojson }},
