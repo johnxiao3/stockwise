@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Stock Trading Platform{% endblock %}</title>
+    <style>
+        /* Protect base styles from Tailwind by using more specific selectors */
+        body {
+            display: flex;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .base-sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding-top: 2rem;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        }
+
+        .base-sidebar * {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        }
+
+        .base-sidebar .sidebar-header {
+            padding: 0 1.5rem 2rem 1.5rem;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .base-sidebar .sidebar-header h2 {
+            color: #3498db;
+            font-size: 1.5rem;
+            margin: 0;
+            padding: 0;
+        }
+
+        .base-sidebar .nav-menu {
+            list-style: none;
+            padding: 1rem 0;
+            margin: 0;
+        }
+
+        .base-sidebar .nav-item {
+            padding: 0.5rem 1.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .base-sidebar .nav-item a {
+            color: #ecf0f1;
+            text-decoration: none;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            transition: color 0.3s;
+        }
+
+        .base-sidebar .nav-item a:hover {
+            color: #3498db;
+        }
+
+        .base-sidebar .nav-item.active {
+            background: #34495e;
+            border-left: 4px solid #3498db;
+        }
+
+        .base-sidebar .nav-item.active a {
+            color: #3498db;
+        }
+
+        .base-sidebar .logout-item {
+            margin-top: auto;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #34495e;
+        }
+
+        .base-sidebar .logout-button {
+            width: 100%;
+            padding: 0.8rem;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.3s;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+        }
+
+        .base-sidebar .logout-button:hover {
+            background: #c0392b;
+        }
+
+        .base-content {
+            flex: 1;
+            margin-left: 250px;
+            min-height: 100vh;
+            width: calc(100% - 250px);
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .base-sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+
+            .base-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            body {
+                flex-direction: column;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="base-sidebar">
+        <div class="sidebar-header">
+            <h2>StockWise</h2>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item {% if request.url.path == '/' %}active{% endif %}">
+                <a href="/">Home</a>
+            </li>
+            <li class="nav-item {% if request.url.path == '/stockdetail' %}active{% endif %}">
+                <a href="/stockdetail/AAPL">Chart</a>
+            </li>
+            <li class="nav-item {% if request.url.path == '/stockfilter' %}active{% endif %}">
+                <a href="/stockfilter">Screen</a>
+            </li>
+            <li class="nav-item {% if request.url.path == '/autotrading' %}active{% endif %}">
+                <a href="/autotrading">AutoTrading</a>
+            </li>
+        </ul>
+        <div class="logout-item">
+            <form action="/logout" method="get">
+                <button type="submit" class="logout-button">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="base-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

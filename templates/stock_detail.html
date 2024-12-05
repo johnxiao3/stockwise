@@ -4,23 +4,55 @@
     <title>{{ symbol }} - Stock Details</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --border-color: #333;
+            --chart-bg: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --border-color: #666;
+            --chart-bg: #1a1a1a;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
         .chart-container {
             width: 98%;
             height: 600px;
             margin: 20px 0;
-            border: 2px solid #333;
+            border: 0px solid var(--border-color);
             border-radius: 8px;
             padding: 15px;
+            /*background-color: var(--chart-bg);*/
         }
+        .charts-horizontal {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+
+        .charts-horizontal .chart-container {
+            width: 50%;
+        }
+
         .search-box {
             margin: 20px 0;
             padding: 20px;
-            background-color: #f8f9fa;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
             border-radius: 5px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
+
         .search-box input {
             padding: 8px;
             width: 200px;
@@ -54,6 +86,68 @@
             display: flex;
             gap: 10px;
         }
+
+         /* New toggle button styles */
+         .toggle-button {
+            display: inline-flex;
+            align-items: center;
+            padding: 5px;
+            cursor: pointer;
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-color);
+        }
+
+        .toggle-button:hover {
+            background-color: rgba(128, 128, 128, 0.2);
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            margin-left: 8px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #2196F3;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
     </style>
 </head>
 <body>
@@ -66,12 +160,64 @@
             <input type="text" id="symbolInput" placeholder="Enter stock symbol (e.g., AAPL)" required>
             <button class="search-button" onclick="searchStock()">Search</button>
         </form>
+
+        <!-- Theme Toggle Button -->
+        <label class="toggle-button">
+            Dark Mode
+            <span class="toggle-switch">
+                <input type="checkbox" id="themeToggle" onclick="toggleTheme()">
+                <span class="toggle-slider"></span>
+            </span>
+        </label>
+
+        <!-- Layout Toggle Button -->
+        <label class="toggle-button">
+            Horizontal Layout
+            <span class="toggle-switch">
+                <input type="checkbox" id="layoutToggle" onclick="toggleLayout()">
+                <span class="toggle-slider"></span>
+            </span>
+        </label>
     </div>
 
-    <div class="chart-container" id="daily-chart"></div>
-    <div class="chart-container" id="weekly-chart"></div>
+    <div id="charts-container">
+        <div class="chart-container" id="daily-chart"></div>
+        <div class="chart-container" id="weekly-chart"></div>
+    </div>
 
     <script>
+        function formatVolume(volume) {
+            return (volume / 1000000).toFixed(2) + 'M';
+        }
+
+        // Add these functions after your existing JavaScript
+        function toggleTheme() {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            
+            // Update charts with new theme
+            const newTemplate = isDark ? 'plotly' : 'plotly_dark';
+            Plotly.relayout('daily-chart', {
+                template: newTemplate,
+                paper_bgcolor: isDark ? '#ffffff' : '#1a1a1a',
+                plot_bgcolor: isDark ? '#ffffff' : '#1a1a1a'
+            });
+            Plotly.relayout('weekly-chart', {
+                template: newTemplate,
+                paper_bgcolor: isDark ? '#ffffff' : '#1a1a1a',
+                plot_bgcolor: isDark ? '#ffffff' : '#1a1a1a'
+            });
+        }
+
+        function toggleLayout() {
+            const container = document.getElementById('charts-container');
+            container.classList.toggle('charts-horizontal');
+            
+            // Trigger a resize event to make the charts responsive
+            window.dispatchEvent(new Event('resize'));
+        }
+
+
         function calculatePercentageChange(closeValues) {
             const percentChanges = new Array(closeValues.length);
             percentChanges[0] = 0; // First point has no previous value
@@ -85,21 +231,45 @@
         }
 
         function createCandlestickChart(containerId, data, timeframe) {
-            // Calculate percentage changes for price
             const percentChanges = calculatePercentageChange(data.close);
             const priceHoverText = [];
             const colors = [];
             const macdHoverText = [];
+            const wrHoverText = [];
+            const hoverText = [];
+            const hoverStyles = [];
 
-            const reversedDif =data.macd.dif // [...data.macd.dif].reverse();
-            const reversedDea =data.macd.dea // [...data.macd.dea].reverse();
-            const reversedMacd =data.macd.macd // [...data.macd.macd].reverse();
-            
+            // Calculate hover text and colors
             for (let i = 0; i < data.dates.length; i++) {
                 const isIncreasing = i === 0 ? false : data.close[i] > data.close[i - 1];
                 const changeText = i === 0 ? 'N/A' : `${percentChanges[i]}%`;
-                const color = isIncreasing ? '#008800' : '#FF0000';
                 
+                const color = isIncreasing ? '#008800' : '#FF0000';
+                const bgColor = isIncreasing ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 0, 0, 0.9)';
+                const fontColor = isIncreasing ? '#00AA00' : '#FFFFFF';
+
+                colors.push(color);
+
+                // Store hover style information for each point
+                hoverStyles.push({
+                    bgcolor: color
+                });
+
+
+                hoverText.push(
+                    `<b>Date:</b> ${data.dates[i]}<br>` +
+                    `<b>Open:</b> $${data.open[i].toFixed(2)}<br>` +
+                    `<b>High:</b> $${data.high[i].toFixed(2)}<br>` +
+                    `<b>Low:</b> $${data.low[i].toFixed(2)}<br>` +
+                    `<b>Close:</b> $${data.close[i].toFixed(2)}<br>` +
+                    `<b>Change:</b> ${changeText}<br>` +
+                    `<b>DIF:</b> ${data.macd.dif[i].toFixed(2)}<br>` +
+                    `<b>DEA:</b> ${data.macd.dea[i].toFixed(2)}<br>` +
+                    `<b>MACD:</b> ${data.macd.macd[i].toFixed(2)}<br>` +
+                    `<b>WR:</b> ${data.indicators.wr[i].toFixed(2)}<br>` +
+                    `<b>VOL:</b> ${formatVolume(data.volume[i])}`
+                );
+
                 priceHoverText.push(`<b>Date:</b> ${data.dates[i]}<br>` +
                             `<b>Open:</b> $${data.open[i].toFixed(2)}<br>` +
                             `<b>High:</b> $${data.high[i].toFixed(2)}<br>` +
@@ -107,76 +277,140 @@
                             `<b>Close:</b> $${data.close[i].toFixed(2)}<br>` +
                             `<b>Change:</b> ${changeText}`);
 
+                wrHoverText.push(`<b>Date:</b> ${data.dates[i]}<br>` +
+                                `<b>WR:</b> ${data.indicators.wr[i].toFixed(2)}<br>` +
+                                `<b>Volume:</b> ${data.volume[i].toLocaleString()}`);
+
                 macdHoverText.push(`<b>Date:</b> ${data.dates[i]}<br>` +
                                 `<b>DIF:</b> ${data.macd.dif[i].toFixed(2)}<br>` +
                                 `<b>DEA:</b> ${data.macd.dea[i].toFixed(2)}<br>` +
                                 `<b>MACD:</b> ${data.macd.macd[i].toFixed(2)}`);
                 
-                colors.push(color);
             }
 
+            // Candlestick trace
             var candlestickTrace = {
-                //x: data.dates,
-                x: Array.from({length: data.dates.length}, (_, i) => i),  // Use indices for x values
+                x: Array.from({length: data.dates.length}, (_, i) => i),
                 open: data.open,
                 high: data.high,
                 low: data.low,
                 close: data.close,
                 type: 'candlestick',
                 name: 'OHLC',
-                text: priceHoverText,
+                text: hoverText,
                 hoverinfo: 'text',
-                increasing: {
-                    line: { color: '#00AA00' },
-                    fillcolor: 'rgba(255, 255, 255, 0.7)'
-                },
-                decreasing: {
-                    line: { color: '#FF0000' },
-                    fillcolor: 'rgba(255, 0, 0, 0.7)'
-                },
-                hoverlabel: {
-                    bgcolor: 'white',
-                    bordercolor: colors,
-                    font: { color: colors, size: 12 }
-                },
+                increasing: {line: {color: '#00AA00'}, fillcolor: 'rgba(255, 255, 255, 0.7)'},
+                decreasing: {line: {color: '#FF0000'}, fillcolor: 'rgba(255, 0, 0, 0.7)'},
                 yaxis: 'y'
             };
 
+            // Volume trace with right y-axis
+            var volumeTrace = {
+                x: Array.from({length: data.dates.length}, (_, i) => i),
+                y: data.volume,
+                type: 'bar',
+                name: 'Volume',
+                marker: {color: colors, opacity: 0.3},
+                yaxis: 'y4',
+                hoverinfo: 'none'
+            };
+
+            // WR trace with left y-axis
+            var wrTrace = {
+                x: Array.from({length: data.dates.length}, (_, i) => i),
+                y: data.indicators.wr,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'WR',
+                line: {color: 'purple', width: 1.5},
+                text: hoverText,
+                hoverinfo: 'text',
+                hoverlabel: {
+                    bgcolor: hoverStyles.map(style => style.bgcolor),
+                },
+                yaxis: 'y3'
+            };
+
+            // MACD traces
             var difTrace = {
                 x: Array.from({length: data.dates.length}, (_, i) => i),
-                y: reversedDif,
+                y: data.macd.dif,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'DIF',
-                line: { color: '#0000FF', width: 1.5 },
-                text: macdHoverText,
+                line: {color: '#0000FF', width: 1.5},
+                text: hoverText,
                 hoverinfo: 'text',
+                hoverlabel: {
+                    bgcolor: hoverStyles.map(style => style.bgcolor),
+                },
                 yaxis: 'y2'
             };
 
             var deaTrace = {
                 x: Array.from({length: data.dates.length}, (_, i) => i),
-                y: reversedDea,
+                y: data.macd.dea,
                 type: 'scatter',
                 mode: 'lines',
                 name: 'DEA',
-                line: { color: '#FFA500', width: 1.5 },
-                text: macdHoverText,
+                line: {color: '#FFA500', width: 1.5},
                 hoverinfo: 'none',
                 yaxis: 'y2'
             };
 
             var macdHistTrace = {
                 x: Array.from({length: data.dates.length}, (_, i) => i),
-                y: reversedMacd,
+                y: data.macd.macd,
                 type: 'bar',
                 name: 'MACD',
-                marker: {
-                    color: colors,
-                    opacity: 0.7
-                },
+                marker: {color: colors, opacity: 0.7},
                 hoverinfo: 'none',
                 yaxis: 'y2'
+            };
+
+            var wrReferenceLine = {
+                x: Array.from({length: data.dates.length+1}, (_, i) => i-0.5),
+                y: Array(data.dates.length+1).fill(100),  // Create array of 100s
+                type: 'scatter',
+                mode: 'lines',
+                name: 'WR Reference',
+                line: {
+                    color: 'black',
+                    width: 3
+                },
+                hoverinfo: 'none',
+                showlegend: false,
+                yaxis: 'y3'
+            };
+
+            var wrReferenceLine75 = {
+                x: Array.from({length: data.dates.length+1}, (_, i) => i-0.5),
+                y: Array(data.dates.length+1).fill(75),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'WR 80',
+                line: {
+                    color: 'red',
+                    width: 2
+                },
+                hoverinfo: 'none',
+                showlegend: false,
+                yaxis: 'y3'
+            };
+
+            var wrReferenceLine25 = {
+                x: Array.from({length: data.dates.length+1}, (_, i) => i-0.5),
+                y: Array(data.dates.length+1).fill(25),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'WR 25',
+                line: {
+                    color: 'green',
+                    width: 2
+                },
+                hoverinfo: 'none',
+                showlegend: false,
+                yaxis: 'y3'
             };
 
             var layout = {
@@ -186,25 +420,42 @@
                 },
                 yaxis: {
                     title: 'Stock Price ($)',
-                    domain: [0.35, 1],
+                    domain: [0.5, 1],
                     showline: true,
-                    linewidth: 2,
-                    linecolor: 'black',
-                    mirror: true,
-                    gridcolor: '#E1E1E1',
-                    zerolinecolor: '#969696',
-
+                    linewidth: 1,
+                    linecolor:'black',
+                    mirror:true
                 },
                 yaxis2: {
                     title: 'MACD',
-                    domain: [0, 0.35],
+                    domain: [0.25, 0.5],
                     showline: true,
-                    linewidth: 2,
+                    linewidth: 1,
                     linecolor: 'black',
-                    mirror: true,
-                    gridcolor: '#E1E1E1',
-                    zerolinecolor: '#969696',
-                    showspikes: false
+                    mirror: 'all',  // This creates box around the plot
+                    showgrid: true,
+                    gridcolor: '#AAAAAA',
+                    zeroline: true,    // Shows the zero line
+                    zerolinecolor: 'black',
+                    zerolinewidth: 1
+                    
+                },
+                // WR on left y-axis
+                yaxis3: {
+                    title: 'WR',
+                    domain: [0, 0.25],
+                    showline: true,
+                    range: [0, 100],  // WR range is 0-100
+                    side: 'left',
+                    mirror: 'all',
+                },
+                // Volume on right y-axis (same domain as WR)
+                yaxis4: {
+                    title: 'Volume',
+                    domain: [0, 0.35],  // Same domain as WR
+                    showline: true,
+                    side: 'right',
+                    overlaying: 'y3'  // Overlay with WR axis
                 },
                 xaxis: {
                     rangeslider: {visible: true, thickness: 0.05},
@@ -214,12 +465,8 @@
                     mirror: true,
                     gridcolor: '#AAAAAA',
                     gridwidth: 2,
-                    zerolinecolor: '#969696',
                     type: 'linear',
-                    showgrid: true,
-                    dtick: 10,            // Major grid every 10 points
-                    tick0: 0,
-                    tickmode: 'array',    
+                    tickmode: 'array',
                     ticktext: data.dates.filter((_, i) => i % 10 === 0),
                     tickvals: Array.from({length: Math.ceil(data.dates.length/10)}, (_, i) => i * 10),
                     minor: {              // Changed to object notation
@@ -229,41 +476,26 @@
                         gridcolor: '#CCCCCC',
                         gridwidth: 0.5,
                     },
-                    tickangle: 0,
-                    side: 'bottom',
-                    domain: [0, 1],
-                    range: [-0.5, data.dates.length - 0.5],
-                    rangebreaks: [{
-                        pattern: 'day of week',
-                        bounds: ['sat', 'mon']
-                    }]
+                    showspikes: true,
+                    spikemode: 'across+marker',
+                    spikesnap: 'data',
+                    spikecolor: '#000',
+                    spikethickness: 1,
                 },
-                paper_bgcolor: 'white',
-                plot_bgcolor: 'white',
                 margin: {
-                    l: 60,
-                    r: 40,
+                    l: 50,
+                    r: 50,
                     t: 40,
                     b: 0
                 },
                 showlegend: false,
                 hovermode: 'x',
-                shapes: [
-                    {
-                        type: 'rect',
-                        x0: 0,
-                        x1: 1,
-                        y0: 0,
-                        y1: 0,
-                        xref: 'paper',
-                        yref: 'paper',
-                        line: {
-                            color: 'black',
-                            width: 2,
-                        },
-                        layer: 'below'
-                    }
-                ]
+                spikedistance: -1,
+                ßhoverdistance: -1,
+                legend: {
+                    orientation: 'h',
+                    y: 1.1
+                }
             };
 
             var config = {
@@ -272,15 +504,31 @@
                 modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'eraseshape']
             };
 
-            Plotly.newPlot(containerId, [candlestickTrace, difTrace, deaTrace, macdHistTrace], layout, config);
+            Plotly.newPlot(containerId, [
+                candlestickTrace,
+                difTrace,
+                deaTrace,
+                macdHistTrace,
+                wrTrace,
+                wrReferenceLine,
+                wrReferenceLine25,
+                wrReferenceLine75,
+                volumeTrace
+            ], layout, config);
         }
 
+
+        // Call the function with your data
         createCandlestickChart('daily-chart', {
             dates: {{ plot.daily.dates | tojson }},
             open: {{ plot.daily.open | tojson }},
             high: {{ plot.daily.high | tojson }},
             low: {{ plot.daily.low | tojson }},
             close: {{ plot.daily.close | tojson }},
+            volume: {{ plot.daily.volume | tojson }},
+            indicators: {
+                wr: {{ plot.daily.indicators.wr | tojson }},
+            },
             macd: {
                 dif: {{ plot.daily.macd.dif | tojson }},
                 dea: {{ plot.daily.macd.dea | tojson }},
@@ -288,18 +536,24 @@
             }
         }, 'Daily');
 
+        // Same for weekly chart
         createCandlestickChart('weekly-chart', {
             dates: {{ plot.weekly.dates | tojson }},
             open: {{ plot.weekly.open | tojson }},
             high: {{ plot.weekly.high | tojson }},
             low: {{ plot.weekly.low | tojson }},
             close: {{ plot.weekly.close | tojson }},
+            volume: {{ plot.weekly.volume | tojson }},
+            indicators: {
+                wr: {{ plot.weekly.indicators.wr | tojson }},
+            },
             macd: {
                 dif: {{ plot.weekly.macd.dif | tojson }},
                 dea: {{ plot.weekly.macd.dea | tojson }},
                 macd: {{ plot.weekly.macd.macd | tojson }}
             }
         }, 'Weekly');
+
 
         function searchStock() {
             const symbol = document.getElementById('symbolInput').value.toUpperCase();
@@ -310,5 +564,3 @@
             window.location.href = `/stockdetail/${symbol}`;
         }
     </script>
-</body>
-</html>

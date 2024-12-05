@@ -1,0 +1,17 @@
+<!-- templates/stock_detail_wrapper.html -->
+{% extends "base.html" %}
+
+{% block title %}{{ symbol }} - Stock Details{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Add any additional styles needed for the layout */
+    .main-content {
+        padding: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    {% include "stock_detail.html" %}
+{% endblock %}

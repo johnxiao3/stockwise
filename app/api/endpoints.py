@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Request, HTTPException, Query
+from fastapi import APIRouter, Request, HTTPException, Query, Depends,Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from typing import Optional, List, Dict
 import pandas as pd
+import pandas as pd
+from passlib.context import CryptContext
+# Initialize router
 
 from ..database import get_db_connection
 from ..services.cache import get_cache_timestamp
@@ -17,12 +20,30 @@ from ..services.stock import (
 # Initialize router
 router = APIRouter()
 
+
+
+# Password hashing setup
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+HASHED_PASSWORD = pwd_context.hash("0705")
+
+def verify_password(plain_password: str) -> bool:
+    return pwd_context.verify(plain_password, HASHED_PASSWORD)
+
+def is_authenticated(request: Request) -> bool:
+    return request.session.get("authenticated", False)
+
+async def require_auth(request: Request):
+    if not is_authenticated(request):
+        return RedirectResponse(url="/login", status_code=303)
+    return True
+
+
 # Setup templates
 templates = Jinja2Templates(directory="templates")
 
 # FastAPI routes
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request,auth: bool = Depends(require_auth)):
     """Show all available stock data"""
     try:
         cache_timestamp = get_cache_timestamp()
@@ -57,18 +78,36 @@ async def stock(symbol: str):
     """Handle stock links from top-gainers page"""
     return RedirectResponse(url=f"/stockdetail/{symbol}")
 
+
+
 @router.get("/stockdetail/{symbol}", response_class=HTMLResponse)
-async def stock_detail(request: Request, symbol: str):
+async def stock_detail(request: Request, symbol: str, auth: bool = Depends(require_auth)):
     """Show detailed stock data"""
     try:
         cache_timestamp = get_cache_timestamp()
         plot_data = get_stock_data(symbol, cache_timestamp)
+        
         return templates.TemplateResponse(
-            "stock_detail.html",
-            {"request": request, "symbol": symbol, "plot": plot_data}
+            "stock_detail_wrapper.html",
+            {
+                "request": request, 
+                "symbol": symbol, 
+                "plot": plot_data
+            }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log the error for debugging
+        print(f"Error in stock_detail for {symbol}: {str(e)}")
+        
+        # Return an error page instead of raising an exception
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "error_message": f"Error loading stock data for {symbol}: {str(e)}"
+            },
+            status_code=500
+        )
 
 @router.get("/api/filtered_stocks")
 async def filtered_stocks(
@@ -86,10 +125,10 @@ async def filtered_stocks(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/stock_filter", response_class=HTMLResponse)
-async def stock_filter(request: Request):
+@router.get("/stockfilter", response_class=HTMLResponse)
+async def stockfilter(request: Request):
     """Render stock filter page"""
-    return templates.TemplateResponse("stock_filter.html", {"request": request})
+    return templates.TemplateResponse("stock_filter_wrapper.html", {"request": request})
 
 @router.get("/clear_cache")
 async def clear_cache():
@@ -227,3 +266,32 @@ async def stock_data(request: Request, symbol: str):
             "weekly_data": weekly_data.to_dict('records')
         }
     )
+
+
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    if is_authenticated(request):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": None}
+    )
+
+
+@router.post("/login")
+async def login(request: Request, password: str = Form(...)):
+    if verify_password(password):
+        request.session["authenticated"] = True
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": "Invalid password"},
+        status_code=401
+    )
+
+@router.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)

@@ -1,5 +1,5 @@
 import os,sys
-import yfiance_local as yf
+import app.services.yfiance_local as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -405,7 +405,6 @@ def analyze_and_plot_stocks(today, future_days=0):
 
 def filter_stock(deploy_mode, manual_date=None):
     edt = pytz.timezone('America/New_York')
-    
     if deploy_mode == 1:  # auto deploy mode
         today = datetime.now(edt).strftime('%Y%m%d')
         print('today (auto mode):', today)
@@ -415,7 +414,7 @@ def filter_stock(deploy_mode, manual_date=None):
         today = manual_date
         print('today (manual mode):', today)
     else:  # develop mode (0)
-        today = '20241122'
+        today = '20241129'
         print('today (develop mode):', today)
     
     # Run first function

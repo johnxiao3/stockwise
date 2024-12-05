@@ -60,7 +60,7 @@ class Ticker:
         Returns:
         - pandas DataFrame with historical data
         """
-        if interval != "1d":
+        if interval not in ["1d", "1wk"]:
             raise ValueError("Only daily interval ('1d') is supported in this version")
             
         conn = sqlite3.connect(self.db_path)
@@ -70,20 +70,23 @@ class Ticker:
             start_date, end_date = self._get_date_range(period)
         else:
             start_date, end_date = start, end
+
+        # Map interval to timeframe
+        timeframe = 'daily' if interval == '1d' else 'weekly'
             
         query = """
         SELECT date, open, high, low, close, volume, dividends, stock_splits
         FROM stock_prices
-        WHERE symbol = ? 
+        WHERE symbol = ?
         AND date BETWEEN ? AND ?
-        AND timeframe = 'daily'
+        AND timeframe = ?
         ORDER BY date ASC
         """
         
         df = pd.read_sql_query(
             query, 
             conn, 
-            params=(self.symbol, start_date, end_date),
+            params=(self.symbol, start_date, end_date, timeframe),
             parse_dates=['date']
         )
         conn.close()

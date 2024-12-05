@@ -1,0 +1,7 @@
+bcrypt
+passlib
+python-multipart
+itsdangerous
+
+pip install bcrypt==4.0.1
+pip install passlib==1.7.4

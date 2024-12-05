@@ -2,7 +2,7 @@ from typing import List, Dict, Optional
 import pandas as pd
 
 from ..database import get_db_connection, get_database_size
-from .analysis import calculate_macd
+from .analysis import calculate_macd, calculate_wr
 
 from .cache import database_stats_cache, stock_data_cache, top_gainers_cache
 
@@ -136,7 +136,86 @@ def get_top_gainers_data(timestamp):
     finally:
         conn.close()
 
- # @stock_data_cache
+
+# @stock_data_cache
+def get_stock_data(symbol: str, timestamp: int):
+    """Cache stock data with LRU cache decorator"""
+    conn = get_db_connection()
+    try:
+        plot_data = {'daily': {}, 'weekly': {}}
+        
+        for timeframe in ['daily', 'weekly']:
+            # Modified query to include volume
+            query = """
+                SELECT date, open, high, low, close, volume
+                FROM stock_prices
+                WHERE symbol = ?
+                AND timeframe = ?
+                AND strftime('%w', date) NOT IN ('0', '6')
+                ORDER BY date DESC
+                LIMIT ?
+            """
+            
+            limit = 120 if timeframe == 'daily' else 104
+            cursor = conn.execute(query, (symbol, timeframe, limit))
+            rows = cursor.fetchall()
+            
+            if rows:
+                # Unpack the rows including volume
+                dates, opens, highs, lows, closes, volumes = zip(*rows)
+                
+                # Reverse the data for calculations
+                closes_rev = list(reversed(closes))
+                highs_rev = list(reversed(highs))
+                lows_rev = list(reversed(lows))
+                
+                # Create Series for calculations
+                closes_series = pd.Series(closes_rev)
+                
+                # Calculate indicators
+                dif, dea, macd = calculate_macd(closes_series)
+                wr = calculate_wr(closes_rev, highs_rev, lows_rev)
+                
+                plot_data[timeframe] = {
+                    'dates': list(reversed(dates)),
+                    'open': list(reversed(opens)),
+                    'high': list(reversed(highs)),
+                    'low': list(reversed(lows)),
+                    'close': list(reversed(closes)),
+                    'volume': list(reversed(volumes)),
+                    'indicators': {
+                        'wr': wr.tolist(),
+                    },
+                    'macd': {
+                        'dif': dif.tolist(),
+                        'dea': dea.tolist(),
+                        'macd': macd.tolist()
+                    }
+                }
+            else:
+                # Empty data structure with all required fields
+                plot_data[timeframe] = {
+                    'dates': [], 
+                    'open': [], 
+                    'high': [], 
+                    'low': [], 
+                    'close': [],
+                    'volume': [],
+                    'indicators': {
+                        'wr': [],
+                    },
+                    'macd': {
+                        'dif': [], 
+                        'dea': [], 
+                        'macd': []
+                    }
+                }
+        
+        return plot_data
+    finally:
+        conn.close()
+'''
+# @stock_data_cache
 def get_stock_data(symbol: str, timestamp: int):
     """Cache stock data with LRU cache decorator"""
     conn = get_db_connection()
@@ -181,6 +260,8 @@ def get_stock_data(symbol: str, timestamp: int):
         return plot_data
     finally:
         conn.close()
+'''
+ 
 
 def get_data_summary():
     """Get summary of data in database"""
