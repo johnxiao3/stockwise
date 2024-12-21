@@ -1,0 +1,550 @@
+{% extends "base.html" %}
+
+{% block title %}AutoTrading Configuration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .trading-container {
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .cards-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .trading-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 
+                    0 10px 15px rgba(0, 0, 0, 0.025);
+        padding: 1.5rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .trading-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1), 
+                    0 12px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .card-header {
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .card-header h2 {
+        color: #2c3e50;
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    .toggle-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 0;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #e2e8f0;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    input:checked + .toggle-slider {
+        background-color: #3498db;
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+    }
+
+    .status-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin: 1rem 0;
+        padding: 1.5rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #3498db;
+    }
+
+    .status-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+    }
+
+    .status-label {
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .status-value {
+        color: #1e293b;
+        font-weight: 500;
+    }
+
+    .log-container {
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 1.5rem;
+        border-radius: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+    }
+
+    .update-token {
+        padding: 0.8rem 1.5rem;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .update-token:hover {
+        background: #2980b9;
+        transform: translateY(-1px);
+    }
+
+    .token-warning {
+        color: #ef4444;
+        margin-left: 1rem;
+        font-weight: 500;
+    }
+
+    .debug-card {
+        font-family: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .debug-card pre {
+        max-height: 200px;
+        overflow-y: auto;
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+
+
+    .schedule-config {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 1rem 0;
+    }
+
+    .time-input {
+        padding: 0.5rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 1rem;
+        color: #1e293b;
+        background: white;
+        transition: all 0.2s ease;
+    }
+
+    .time-input:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+    }
+
+    .time-input:hover {
+        border-color: #3498db;
+    }
+
+    .save-time {
+        padding: 0.5rem 1rem;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-weight: 500;
+    }
+
+    .save-time:hover {
+        background: #2980b9;
+        transform: translateY(-1px);
+    }
+
+    .save-time:active {
+        transform: translateY(0);
+    }
+
+    .schedule-label {
+        color: #64748b;
+      
+
+    @media (max-width: 1024px) {
+        .cards-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="trading-container">
+    <!-- Trading Status and Schedule Cards Row -->
+    <div class="cards-row">
+        <!-- AutoTrading Status card remains unchanged -->
+        <div class="trading-card">
+            <div class="card-header">
+                <h2>AutoTrading Status</h2>
+            </div>
+            <div class="toggle-container">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="tradingToggle" onchange="toggleTrading()">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span id="tradingStatus" style="font-weight: 500;">AutoTrading is OFF</span>
+            </div>
+        </div>
+
+        <!-- Updated Schedule Card -->
+        <div class="trading-card">
+            <div class="card-header">
+                <h2>Trading Schedule</h2>
+            </div>
+            <div class="schedule-config">
+                <span class="schedule-label">Daily Run Time:</span>
+                <input type="time" id="scheduleTime" class="time-input">
+                <button class="save-time" onclick="updateSchedule()">Save Schedule</button>
+            </div>
+            <div class="status-info">
+                <div class="status-item">
+                    <span class="status-label">Last Run:</span>
+                    <span id="lastRunTime" class="status-value">Never</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Next Run:</span>
+                    <span id="nextRunTime" class="status-value">Not Scheduled</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Time Until Next Run:</span>
+                    <span id="timeUntilNext" class="status-value">Calculating...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Token Status -->
+        <div class="trading-card">
+            <div class="card-header">
+                <h2>Schwab API Token Status</h2>
+            </div>
+            <div class="status-info">
+                <div class="status-item">
+                    <div>
+                        <strong>Token Expires:</strong>
+                        <span id="tokenExpireTime">Not available</span>
+                        <span id="tokenWarning" class="token-warning"></span>
+                    </div>
+                </div>
+                <button class="update-token" onclick="updateToken()">Update Token</button>
+
+            </div>
+        </div>
+    </div>
+
+
+    
+
+    <!-- Log Display -->
+    <div class="trading-card">
+        <div class="card-header">
+            <h2>Trading Log</h2>
+        </div>
+        <div id="logContent" class="log-container">
+            Loading log...
+        </div>
+    </div>
+
+    <!-- Debug Info -->
+    <div class="trading-card debug-card">
+        <div class="card-header">
+            <h2>Debug Info</h2>
+        </div>
+        <pre id="debugInfo">Waiting for API calls...</pre>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+    // Debug logging
+    function logDebug(message) {
+        const debugElement = document.getElementById('debugInfo');
+        const timestamp = new Date().toISOString();
+        debugElement.textContent += `\n${timestamp}: ${message}`;
+    }
+
+    // Calculate time until next run
+    function calculateTimeUntil(nextRunStr) {
+        if (!nextRunStr) return 'Not scheduled';
+        
+        const nextRun = new Date(nextRunStr);
+        const now = new Date();
+        const diff = nextRun - now;
+        
+        if (diff < 0) return 'Next day';
+        
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60 )) / (1000 ));
+        
+        return `${hours}h ${minutes}m ${seconds}s`;
+    }
+
+    // Update time until next run
+    function updateTimeUntilNext() {
+        fetch('/api/next-run-time')
+            .then(response => response.json())
+            .then(data => {
+                const timeUntilElement = document.getElementById('timeUntilNext');
+                timeUntilElement.textContent = calculateTimeUntil(data.nextRun);
+                logDebug('Time until next run updated');
+            })
+            .catch(error => {
+                logDebug(`Error updating time until next run: ${error.message}`);
+                console.error('Error:', error);
+            });
+    }
+
+
+    // Format date for display
+    function formatDateTime(dateStr) {
+        if (!dateStr) return 'Not available';
+        return new Date(dateStr).toLocaleString();
+    }
+
+    // Trading toggle function
+    function toggleTrading() {
+        const toggle = document.getElementById('tradingToggle');
+        const status = document.getElementById('tradingStatus');
+        
+        logDebug('Attempting to toggle trading...');
+        
+        fetch('/api/toggle-trading', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                enabled: toggle.checked
+            })
+        })
+        .then(response => {
+            logDebug(`Server responded with status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+            logDebug(`Received data: ${JSON.stringify(data)}`);
+            status.textContent = `AutoTrading is ${toggle.checked ? 'ON' : 'OFF'}`;
+        })
+        .catch(error => {
+            logDebug(`Error occurred: ${error.message}`);
+            console.error('Error:', error);
+            toggle.checked = !toggle.checked;
+        });
+    }
+
+    // Update schedule function
+    function updateSchedule() {
+        const scheduleTime = document.getElementById('scheduleTime').value;
+        
+        logDebug(`Updating schedule to: ${scheduleTime}`);
+        
+        fetch('/api/update-schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                time: scheduleTime
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            logDebug(`Schedule updated: ${JSON.stringify(data)}`);
+            updateRunTimes();
+        })
+        .catch(error => {
+            logDebug(`Schedule update error: ${error.message}`);
+            console.error('Error:', error);
+        });
+    }
+
+    // Update token function
+    function updateToken() {
+        logDebug('Updating token...');
+        
+        fetch('/api/update-token', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            logDebug(`Token updated: ${JSON.stringify(data)}`);
+            checkTokenStatus();
+        })
+        .catch(error => {
+            logDebug(`Token update error: ${error.message}`);
+            console.error('Error:', error);
+        });
+    }
+
+    // Check token status
+    function checkTokenStatus() {
+        fetch('/api/token-status')
+        .then(response => response.json())
+        .then(data => {
+            const expireTime = new Date(data.expireTime);
+            const now = new Date();
+            const timeRemaining = expireTime - now;
+            
+            document.getElementById('tokenExpireTime').textContent = formatDateTime(data.expireTime);
+            
+            if (timeRemaining < 3600000) { // Less than 1 hour
+                document.getElementById('tokenWarning').textContent = 'Token expires soon!';
+            } else {
+                document.getElementById('tokenWarning').textContent = '';
+            }
+            
+            logDebug(`Token status checked: expires ${formatDateTime(data.expireTime)}`);
+        })
+        .catch(error => {
+            logDebug(`Token status error: ${error.message}`);
+            console.error('Error:', error);
+        });
+    }
+
+    // Update run times
+    function updateRunTimes() {
+        fetch('/api/next-run-time')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('lastRunTime').textContent = formatDateTime(data.lastRun);
+            document.getElementById('nextRunTime').textContent = formatDateTime(data.nextRun);
+            logDebug(`Run times updated: last=${formatDateTime(data.lastRun)}, next=${formatDateTime(data.nextRun)}`);
+        })
+        .catch(error => {
+            logDebug(`Run times error: ${error.message}`);
+            console.error('Error:', error);
+        });
+    }
+
+    // Fetch log content
+    function fetchLog() {
+        fetch('/api/trading-log')
+            .then(response => response.text())
+            .then(data => {
+                const logContainer = document.getElementById('logContent');
+                if (!data || data === "No log entries yet.") {
+                    logContainer.textContent = 'No log entries.';
+                    return;
+                }
+                
+                // Remove double quotes from start and end, then replace \n with actual line breaks
+                const cleanedData = data.replace(/^"|"$/g, '');  // Remove quotes at start and end
+                const formattedLog = cleanedData.replace(/\\n/g, '\n');
+                logContainer.textContent = formattedLog;
+                
+                // Scroll to bottom of log
+                logContainer.scrollTop = logContainer.scrollHeight;
+                logDebug('Log content updated');
+            })
+            .catch(error => {
+                logDebug(`Log fetch error: ${error.message}`);
+                console.error('Error:', error);
+            });
+    }
+
+    // Initialize page
+    function initPage() {
+        logDebug('Page initialized');
+        
+        // Get initial trading status
+        fetch('/api/trading-status')
+            .then(response => response.json())
+            .then(data => {
+                logDebug(`Initial status: ${JSON.stringify(data)}`);
+                document.getElementById('tradingToggle').checked = data.enabled;
+                document.getElementById('tradingStatus').textContent = 
+                    `AutoTrading is ${data.enabled ? 'ON' : 'OFF'}`;
+                document.getElementById('scheduleTime').value = data.schedule_time;
+                document.getElementById('lastRunTime').textContent = formatDateTime(data.last_run);
+                document.getElementById('nextRunTime').textContent = formatDateTime(data.next_run);
+                document.getElementById('tokenExpireTime').textContent = formatDateTime(data.token_expire);
+                document.getElementById('timeUntilNext').textContent = calculateTimeUntil(data.next_run);
+
+            })
+            .catch(error => logDebug(`Error getting initial status: ${error.message}`));
+
+        // Initial log fetch
+        fetchLog();
+        
+        // Set up periodic refreshes
+        setInterval(fetchLog, 30000);  // Refresh log every 30 seconds
+        setInterval(checkTokenStatus, 60000);  // Check token every minute
+        setInterval(updateRunTimes, 60000);  // Update run times every minute
+        setInterval(updateTimeUntilNext, 10000);  // Update time until next run every minute
+
+    }
+
+    // Run initialization when page loads
+    document.addEventListener('DOMContentLoaded', initPage);
+</script>
+{% endblock %}

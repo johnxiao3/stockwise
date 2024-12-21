@@ -135,7 +135,7 @@
             <li class="nav-item {% if request.url.path == '/' %}active{% endif %}">
                 <a href="/">Home</a>
             </li>
-            <li class="nav-item {% if request.url.path == '/stockdetail' %}active{% endif %}">
+            <li class="nav-item {% if 'stockdetail' in request.url.path %}active{% endif %}">
                 <a href="/stockdetail/AAPL">Chart</a>
             </li>
             <li class="nav-item {% if request.url.path == '/stockfilter' %}active{% endif %}">

@@ -49,34 +49,35 @@ def verify_insertion(conn, symbol, date, timeframe):
     data = cursor.fetchone()
     return data is not None
 
-def get_this_week_dates():
-    """Calculate the date range for this week's data."""
+def get_date_ranges():
+    """Calculate the date ranges based on the current day."""
     today = datetime.now()
+    is_friday = today.weekday() == 4
     
-    # If it's Monday, we need last Friday's data
-    if today.weekday() == 0:
-        start_date = today - timedelta(days=3)  # Last Friday
+    if is_friday:
+        # If it's Friday, get the whole week's data
+        start_date = today - timedelta(days=today.weekday())  # Monday of this week
+        end_date = today  # Friday
     else:
-        # Start from this week's Monday
-        start_date = today - timedelta(days=today.weekday())
+        # If it's not Friday, only get the last 5 trading days
+        start_date = today - timedelta(days=5)
+        end_date = today
     
-    # End date is yesterday (since today's data might not be complete)
-    end_date = today 
-    
-    return start_date, end_date
+    return start_date, end_date, is_friday
 
 def update_database(db_path):
-    """Update database with this week's daily and weekly data for all stocks."""
+    """Update database with stock data based on the current day of the week."""
     conn = sqlite3.connect(db_path)
     stocks, total_stocks = get_stocks_to_update(db_path)
     
     print(f"Starting update process for {total_stocks} stocks...")
     print(f"Found stocks: {', '.join(stocks[:5])}{'...' if len(stocks) > 5 else ''}")
     
-    # Get date ranges for this week
-    start_date, end_date = get_this_week_dates()
+    # Get date ranges and check if it's Friday
+    start_date, end_date, is_friday = get_date_ranges()
     
     print(f"Fetching data for period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    print(f"Today is{' ' if is_friday else ' not '}Friday - {'will' if is_friday else 'will not'} update weekly data")
     
     records_added = {'daily': 0, 'weekly': 0}
     
@@ -86,19 +87,20 @@ def update_database(db_path):
             
             stock = yf.Ticker(symbol)
             
-            # Get daily data for this week
+            # Get daily data
             daily_data = stock.history(start=start_date.strftime('%Y-%m-%d'),
                                      end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
                                      interval='1d')
             
             print(f"Retrieved {len(daily_data)} daily records for {symbol}")
             
-            # Get weekly data (if we're past the week's middle, we might have this week's data)
-            weekly_data = stock.history(start=start_date.strftime('%Y-%m-%d'),
-                                      end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
-                                      interval='1wk')
-            
-            print(f"Retrieved {len(weekly_data)} weekly records for {symbol}")
+            # Get weekly data only if it's Friday
+            weekly_data = pd.DataFrame()
+            if is_friday:
+                weekly_data = stock.history(start=start_date.strftime('%Y-%m-%d'),
+                                          end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
+                                          interval='1wk')
+                print(f"Retrieved {len(weekly_data)} weekly records for {symbol}")
             
             # Process daily data
             if not daily_data.empty:
@@ -132,8 +134,8 @@ def update_database(db_path):
                         except Exception as e:
                             print(f"Error inserting daily record for {symbol} on {row['date']}: {str(e)}")
             
-            # Process weekly data
-            if not weekly_data.empty:
+            # Process weekly data only if it's Friday
+            if is_friday and not weekly_data.empty:
                 weekly_data['Symbol'] = symbol
                 weekly_data['TimeFrame'] = 'weekly'
                 weekly_data.index = weekly_data.index.strftime('%Y-%m-%d')
@@ -165,7 +167,6 @@ def update_database(db_path):
                             print(f"Error inserting weekly record for {symbol} on {row['date']}: {str(e)}")
             
             conn.commit()
-            time.sleep(1)  # Prevent hitting API rate limits
             
         except Exception as e:
             print(f"Error processing {symbol}: {str(e)}")

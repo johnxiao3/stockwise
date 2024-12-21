@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Request, HTTPException, Query, Depends,Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from typing import Optional, List, Dict
-import pandas as pd
+
 import pandas as pd
 from passlib.context import CryptContext
-# Initialize router
+import aiofiles
+from pathlib import Path
 
+from datetime import datetime, time, timedelta
+from app.models.scheduler import TradingScheduler
+
+
+# Initialize router
+from ..models.strading_state import *
 from ..database import get_db_connection
 from ..services.cache import get_cache_timestamp
 from ..services.stock import (
@@ -129,6 +135,11 @@ async def filtered_stocks(
 async def stockfilter(request: Request):
     """Render stock filter page"""
     return templates.TemplateResponse("stock_filter_wrapper.html", {"request": request})
+
+@router.get("/autotrading", response_class=HTMLResponse)
+async def stockfilter(request: Request):
+    """Render stock filter page"""
+    return templates.TemplateResponse("autotrading.html", {"request": request})
 
 @router.get("/clear_cache")
 async def clear_cache():
@@ -295,3 +306,101 @@ async def login(request: Request, password: str = Form(...)):
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login", status_code=303)
+
+
+
+
+# Create global trading state
+trading_state = TradingState()
+scheduler = TradingScheduler(trading_state)
+
+# Router endpoints
+@router.post("/api/toggle-trading")
+async def toggle_trading(status: TradingStatusUpdate):
+    trading_state.enabled = status.enabled
+    trading_state.save_config()
+    return {"status": "success", "enabled": trading_state.enabled}
+
+@router.post("/api/update-schedule")
+async def update_schedule(schedule: ScheduleUpdate):
+    try:
+        # Validate time format
+        time.fromisoformat(schedule.time)
+        
+        # Update the schedule time in trading state
+        trading_state.schedule_time = schedule.time
+        trading_state.save_config()
+        
+        # Reschedule the job with new time
+        scheduler.schedule_task()  # This will remove old job and create new one
+        
+        print(f"Schedule updated to: {schedule.time}")
+        print(f"Next run time: {scheduler.job.next_run_time if hasattr(scheduler, 'job') else 'No job scheduled'}")
+        
+        return {
+            "status": "success", 
+            "schedule_time": schedule.time,
+            "next_run": scheduler.job.next_run_time if hasattr(scheduler, 'job') else None
+        }
+    except ValueError as e:
+        print(f"Error updating schedule: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid time format")
+    except Exception as e:
+        print(f"Unexpected error updating schedule: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update schedule")
+
+@router.post("/api/update-token")
+async def update_token():
+    try:
+        # Simulate token refresh - replace with actual Schwab API call
+        trading_state.token_expire = datetime.now() + timedelta(hours=24)
+        trading_state.save_config()
+        return {"status": "success", "expire_time": trading_state.token_expire}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/token-status", response_model=TokenStatus)
+async def get_token_status():
+    if not trading_state.token_expire:
+        # If no token exists, set a expired time
+        return TokenStatus(expireTime=datetime.now())
+    return TokenStatus(expireTime=trading_state.token_expire)
+
+@router.get("/api/next-run-time", response_model=RunTimes)
+async def get_run_times():
+    return RunTimes(
+        lastRun=trading_state.last_run,
+        nextRun=trading_state.calculate_next_run()
+    )
+
+@router.get("/api/trading-log")
+async def get_trading_log():
+    log_path = Path("static/log.txt")
+    try:
+        # Check if file exists and create it if it doesn't
+        if not log_path.exists():
+            # Create directory if it doesn't exist
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            # Create empty file
+            log_path.touch()
+            return "No log entries yet."
+        
+        # Read file content
+        async with aiofiles.open(log_path, mode='r', encoding='utf-8') as file:
+            content = await file.read()
+            return content if content else "No log entries yet."
+            
+    except Exception as e:
+        print(f"Error reading log file: {str(e)}")  # Debug print
+        raise HTTPException(status_code=500, detail=f"Error reading log file: {str(e)}")
+
+# Optional: Endpoint to get current trading status
+@router.get("/api/trading-status")
+async def get_trading_status():
+    return {
+        "enabled": trading_state.enabled,
+        "schedule_time": trading_state.schedule_time,
+        "last_run": trading_state.last_run,
+        "next_run": trading_state.calculate_next_run(),
+        "token_expire": trading_state.token_expire
+    }

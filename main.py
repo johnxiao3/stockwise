@@ -11,11 +11,25 @@ from fastapi import HTTPException, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware  # Changed import
-
+from app.api.endpoints import scheduler
 from typing import Optional
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Schedule the trading task
+    scheduler.schedule_task()
+    print('start job')
+    yield
+    # Shutdown: Cleanup (if needed)
+    if scheduler.scheduler.running:
+        scheduler.scheduler.shutdown()
+
 
 # Initialize FastAPI app
 app = FastAPI(title="Stock Market Analysis",
+            lifespan=lifespan,
              description="A FastAPI application for stock market analysis",
              version="1.0.0")
 
@@ -31,6 +45,7 @@ app.add_middleware(
     session_cookie="session_token",
     max_age=3600
 )
+
 
 
 # Update initialization section
