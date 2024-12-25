@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  stockwise:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: stockwise
+    container_name: stockwise-container
+    ports:
+      - "8000:8000"
+    volumes:
+      - stockwise_data:/app/static
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DB_PATH=/app/static/database.db
+    restart: always
+
+volumes:
+  stockwise_data:
+    name: stockwise_data

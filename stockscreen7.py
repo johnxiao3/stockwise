@@ -1,11 +1,9 @@
 import os,sys
 import app.services.yfiance_local as yf
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+import sqlite3
 import numpy as np
 from datetime import datetime
-from scipy.optimize import curve_fit
 import pytz
 #from post_filtered import run_post_process
 import warnings
@@ -14,47 +12,36 @@ warnings.filterwarnings("ignore")
 # add edt
 edt = pytz.timezone("America/New_York")
 
-# Define the cosine fitting function
-def cosine_fit(x, amplitude, frequency, phase):
-    return amplitude * np.cos(frequency * x + phase) + 0 #offset
-
-# Plot MACD histogram data in ax_floating with cosine fitting and zero-crossing points
-def plot_macd_histogram_with_cosine_fit(ax, macd_hist_data):
-    x_data = np.arange(len(macd_hist_data))
-    y_data = macd_hist_data
-
-    if (len(macd_hist_data)) == 3:
-        return 1
-
-    # Fit a cosine function to the MACD histogram data
+def get_market_cap(ticker):
     try:
-        # Initial parameters: amplitude, frequency, phase, offset
-        initial_guess = [np.max(y_data) - np.min(y_data), 2 * np.pi / len(y_data), 0]
-        params, _ = curve_fit(cosine_fit, x_data, y_data, p0=initial_guess)
+        # Connect to the database
+        conn = sqlite3.connect('./static/stock_data.db')
+        cursor = conn.cursor()
 
-        # Generate fitted y values using the cosine function
-        extended_x_data = np.arange(0, len(x_data) + int(np.pi / params[1]))  # Extend by π in frequency
-        fitted_y_data = cosine_fit(extended_x_data, *params)
+         # Get column names
+        #cursor.execute("PRAGMA table_info(nasdaq_screener)")
+        #columns = cursor.fetchall()
+        #print("Column structure:", columns)
         
-        # Plot the MACD histogram and the fitted cosine curve
-        ax.plot(x_data, y_data, 'o-', label='MACD Histogram', markersize=4, color='purple', alpha=0.7)
-        ax.plot(extended_x_data, fitted_y_data, 'b--', label='Cosine Fit')
-
-        # Find zero-crossings and mark them
-        zero_crossings = np.where(np.diff(np.sign(y_data)))[0]
-        for crossing in zero_crossings:
-            ax.plot(crossing, y_data[crossing], 'ro', label='Zero Crossing' if crossing == zero_crossings[0] else "")
+        # Query to get market cap for the specific ticker
+        query = """
+        SELECT Market_Cap
+        FROM nasdaq_screener 
+        WHERE Symbol = ?
+        """
         
-        fitted_y_original_range = cosine_fit(x_data, *params)
-        mse = np.mean((y_data - fitted_y_original_range) ** 2)
+        cursor.execute(query, (ticker,))
+        result = cursor.fetchone()
         
-        # Annotate with fitting parameters if needed
-        amplitude, frequency, phase = params
-        ax.text(0.05, 0.95, f'Amp: {amplitude:.2f}, Freq: {frequency:.2f} Phase: {phase:.2f}\nMSE:{mse:.4f}',
-                transform=ax.transAxes, fontsize=8, verticalalignment='top')
+        # Close the connection
+        conn.close()
         
-    except RuntimeError:
-        print("Cosine fit failed; parameters may be unsuitable for fitting.")
+        # Return the market cap if found, otherwise return None
+        return float(result[0]) if result else None
+        
+    except Exception as e:
+        print(f"Error reading market cap for {ticker}: {str(e)}")
+        return None
 
 
 # Function to calculate EMA
@@ -245,15 +232,32 @@ def find_buy_sell_points7(x_valid,y_valid,hist_valid):
         
         i += 1  # Move to the next point
     return buy_points,sell_points
+# After the loop ends, you can analyze the data:
+def analyze_stocks(df):
+    """
+    Sort all stocks by BP first, then by market cap.
+    Returns and prints only top 10 stocks from the entire sorted list.
+    """
+    # Sort all stocks by BP first, then by market cap
+    sorted_stocks = df.sort_values(['BP', 'market_cap'], ascending=[True, False])
+    
+    # Take only top 10 stocks
+    top_10_stocks = sorted_stocks.head(10)
+    
+    # Get the tickers as a list
+    top_10_tickers = top_10_stocks['ticker'].tolist()
+    
+    # Print in the requested format
+    print('\n[' + '\n'.join(f"'{ticker}'," if i < len(top_10_tickers)-1 else f"'{ticker}'" 
+                         for i, ticker in enumerate(top_10_tickers)) + ']')
+    
+    # Return the tickers list
+    return top_10_tickers
 
 def analyze_and_plot_stocks(today, future_days=0):
     # Define the number of future days to plot after today
     #future_days = 0  # Adjust as needed
     realtoday = datetime.today()
-    #today = '20241101'
-    filtered_file_path = f'./static/images/{today}/{today}_selected.txt'
-    filtered_file_path1 = f'./static/images/{today}/{today}_selected1.txt'
-
     today_date = datetime.strptime(today, '%Y%m%d')
 
     time_delta = (realtoday-today_date).days
@@ -261,16 +265,15 @@ def analyze_and_plot_stocks(today, future_days=0):
     os.makedirs(f"./static/images/{today}", exist_ok=True)
 
 
-    filtered = 0
     screener = pd.read_csv("./nasdaq_screener.csv")
     tickers = screener['Symbol']
     print(f"Loaded {len(tickers)} tickers from CSV file")
 
     total_stocks = len(tickers)
     tot_filtered = 0
-    # Fetch, process, and plot for each ticker
-    filtered_file = open(filtered_file_path, 'w')
     sel_idx=0
+    # Create an empty DataFrame before the loop
+    stock_data = pd.DataFrame(columns=['ticker', 'market_cap', 'BP'])
     for idx, stockticker in enumerate(tickers, start=1):
         #if idx<415:
         #    continue
@@ -319,8 +322,6 @@ def analyze_and_plot_stocks(today, future_days=0):
             data[f'EMA_{window}'] = ema(data['Close'], window)
         data['MACD'], data['MACD_signal'], data['MACD_hist'] = calculate_macd(data['Close'])
         
-        future_close_price = data['Close'].iloc[-1]
-        percentage_change = ((future_close_price - today_close_price) / today_close_price) * 100
         # Calculate the daily percentage change
         data['Pct_Change'] = data['Close'].pct_change() * 100  # Convert to percentage
 
@@ -361,47 +362,50 @@ def analyze_and_plot_stocks(today, future_days=0):
         if all(green_ema < ema_value for ema_value in all_other_ema_values):
             note = 'GreenLow'
             continue
-
         ema_3_last_3 = data_for_check['EMA_3'].values[-3:]
         if ema_3_last_3[-1] < ema_3_last_3[-2]:
             continue
-        
         #if MACD_hist_slope <0.02:continue
         if MACD_hist_slope <0.15:continue
-
-
         if crossover_days>22:continue
-        # Fit EMA 3 line from crossover point to today
-        #slope, mse, fit_values = fit_ema_line(data_for_check, last_crossover_idx, len(data_for_check) - 1)
-        #if mse<0.02 and slope <-0.04: continue
 
-        
-        #if filtered==0:continue
+        add_technical_indicators(data)
+        meantrend = (data['RSI_6']+100-data['WR_6']+data['kdj_k'])/3
+        x_range = np.arange(len(data))
+        # Mask NaN values in 'WR_6' to get valid data points
+        meanWR = (data['WR_6']+data['WR_10'])/2
+        valid_mask = ~np.isnan(meanWR)
+        x_valid = x_range[valid_mask]           # Filtered x-values without NaNs
+        y_valid = meanWR[valid_mask]      # Filtered WR_6 values without NaNs
+        hist_valid = data['MACD_hist'][valid_mask]
+        buy_points,sell_points = find_buy_sell_points(x_valid,y_valid,hist_valid)
+        buy_points7,sell_points7 = find_buy_sell_points7(x_valid,meantrend[valid_mask],hist_valid)
+        nearest_buy = x_valid[-1]-buy_points[-1]
+        nearest_buy7 = x_valid[-1]-buy_points7[-1]
+        nearest_sell = x_valid[-1]-sell_points[-1]
+        nearest_sell7 = x_valid[-1]-sell_points7[-1]
+        min_buy = min(nearest_buy,nearest_buy7)
+        min_sell = min(nearest_sell,nearest_sell7)
 
-        add_technical_indicators(data_for_check)
-        check_meantrend = (data_for_check['RSI_6']+100-data_for_check['WR_6']+data_for_check['kdj_k'])/3
-        check_x_range = np.arange(len(data_for_check))
-        check_meanWR = (data_for_check['WR_6']+data_for_check['WR_10'])/2
-        check_valid_mask = ~np.isnan(check_meanWR)
-        check_x_valid = check_x_range[check_valid_mask]           # Filtered x-values without NaNs
-        check_y_valid = check_meanWR[check_valid_mask]      # Filtered WR_6 values without NaNs
-        check_hist_valid = data_for_check['MACD_hist'][check_valid_mask]
-        check_buy_points,check_sell_points = find_buy_sell_points(check_x_valid,check_y_valid,check_hist_valid)
-        check_buy_points7,check_sell_points7 = find_buy_sell_points7(check_x_valid,check_meantrend[check_valid_mask],check_hist_valid)
-        check_nearest_buy = check_x_valid[-1]-check_buy_points[-1]
-        check_nearest_buy7 = check_x_valid[-1]-check_buy_points7[-1]
-        if filtered==1:
-            if check_nearest_buy>1 and check_nearest_buy7>1:
-                continue
-        min_buy = min(check_nearest_buy,check_nearest_buy7)
+        if min_buy >4: continue
         sel_idx+=1
         tot_filtered += 1
         try:
+            market_cap = get_market_cap(stockticker)
+            if market_cap is None:
+                market_cap = 0  # or handle the error case as needed
             print(f'|{sel_idx:>4}/{total_stocks}|{stockticker:<5}|f:{tot_filtered:<2}|{market_cap/1000000000:<3.1f}B|BP:{min_buy}')
+            # Inside your loop, after the print statement, add this:
+            stock_data.loc[len(stock_data)] = {
+                'ticker': stockticker,
+                'market_cap': market_cap/1000000000,  # Converting to billions
+                'BP': min_buy
+            }
         except:
             pass
-        filtered_file.write(f"{stockticker},{market_cap}\n")
-    filtered_file.close()
+    
+    analyze_stocks(stock_data)
+
 
 def filter_stock(deploy_mode, manual_date=None):
     edt = pytz.timezone('America/New_York')
