@@ -16,6 +16,28 @@ services:
       - PORT=8000
       - DB_PATH=/app/static/database.db
     restart: always
+    networks:
+      - stockwise_network
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: stockwise-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - stockwise
+    restart: always
+    networks:
+      - stockwise_network
+
+networks:
+  stockwise_network:
+    driver: bridge
 
 volumes:
   stockwise_data:
