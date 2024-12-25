@@ -144,6 +144,9 @@
             <li class="nav-item {% if request.url.path == '/autotrading' %}active{% endif %}">
                 <a href="/autotrading">AutoTrading</a>
             </li>
+            <li class="nav-item {% if request.url.path == '/updatedb' %}active{% endif %}">
+                <a href="/updatedb">Update DB</a>
+            </li>
         </ul>
         <div class="logout-item">
             <form action="/logout" method="get">

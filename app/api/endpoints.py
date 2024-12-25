@@ -9,7 +9,9 @@ from pathlib import Path
 
 from datetime import datetime, time, timedelta
 from app.models.scheduler import TradingScheduler
-
+from ..models.scheduler import TradingScheduler, DBUpdateScheduler
+from ..models.strading_state import TradingState
+from ..models.db_update_state import DBUpdateState
 
 # Initialize router
 from ..models.strading_state import *
@@ -311,8 +313,79 @@ async def logout(request: Request):
 
 
 # Create global trading state
+#trading_state = TradingState()
+#scheduler = TradingScheduler(trading_state)
+
 trading_state = TradingState()
+db_update_state = DBUpdateState()
 scheduler = TradingScheduler(trading_state)
+db_scheduler = DBUpdateScheduler(db_update_state)
+
+
+#===================================
+@router.post("/api/trigger-db-update")
+async def trigger_db_update():
+    try:
+        # Run the update task directly
+        await db_scheduler.run_update_task()
+        return {"status": "success", "message": "Database update triggered successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+# Add these new routes for database updates
+@router.get("/updatedb", response_class=HTMLResponse)
+async def get_updatedb_page(request: Request):
+    return templates.TemplateResponse("updatedb.html", {"request": request})
+
+@router.post("/api/toggle-db-update")
+async def toggle_db_update(enabled: dict):
+    db_update_state.enabled = enabled.get("enabled", False)
+    db_update_state.save_config()
+    return {"status": "success", "enabled": db_update_state.enabled}
+
+@router.post("/api/update-db-schedule")
+async def update_db_schedule(schedule: dict):
+    new_time = schedule.get("time")
+    if not new_time:
+        raise HTTPException(status_code=400, detail="Time not provided")
+    
+    db_update_state.schedule_time = new_time
+    db_update_state.save_config()
+    db_scheduler.schedule_task()
+    
+    next_run = db_update_state.calculate_next_run()
+    return {
+        "status": "success",
+        "schedule_time": db_update_state.schedule_time,
+        "next_run": next_run.isoformat() if next_run else None
+    }
+
+@router.get("/api/db-update-status")
+async def get_db_update_status():
+    next_run = db_update_state.calculate_next_run()
+    return {
+        "enabled": db_update_state.enabled,
+        "schedule_time": db_update_state.schedule_time,
+        "last_run": db_update_state.last_run.isoformat() if db_update_state.last_run else None,
+        "next_run": next_run.isoformat() if next_run else None
+    }
+
+@router.get("/api/db-next-run-time")
+async def get_db_next_run_time():
+    next_run = db_update_state.calculate_next_run()
+    return {
+        "lastRun": db_update_state.last_run.isoformat() if db_update_state.last_run else None,
+        "nextRun": next_run.isoformat() if next_run else None
+    }
+
+@router.get("/api/db-update-log")
+async def get_db_update_log():
+    try:
+        with open("static/logs/update_db.txt", "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "No log entries yet."
+#===================================
+
 
 # Router endpoints
 @router.post("/api/toggle-trading")

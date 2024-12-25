@@ -4,6 +4,7 @@ import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from ..models.strading_state import TradingState
+from ..models.db_update_state import DBUpdateState
 
 class TradingScheduler:
     def __init__(self, trading_state: TradingState):
@@ -75,4 +76,76 @@ class TradingScheduler:
         hours = time_diff.seconds // 3600
         minutes = (time_diff.seconds % 3600) // 60
         
+        return f"{hours}h {minutes}m"
+
+class DBUpdateScheduler:
+    def __init__(self, update_state: DBUpdateState):
+        self.update_state = update_state
+        self.scheduler = AsyncIOScheduler()
+        self.log_file = "static/logs/update_db.txt"
+
+    async def run_update_task(self):
+        """Execute the database update task and log the execution"""
+        if not self.update_state.enabled:
+            return
+        os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
+        print("Running database update")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_message = f"[{timestamp}] Database update task executed\n"
+
+        with open(self.log_file, "a") as f:
+            f.write(log_message)
+
+        self.update_state.last_run = datetime.now()
+        self.update_state.save_config()
+
+        # Add your database update logic here
+        # For example:
+        # await update_stock_data()
+        # await update_market_metrics()
+
+    def schedule_task(self):
+        """Schedule the database update task based on the configured time"""
+        try:
+            # Clear existing job if it exists
+            if hasattr(self, 'job') and self.job:
+                self.job.remove()
+                print("Removed existing DB update job")
+
+            # Parse schedule time
+            hour, minute = map(int, self.update_state.schedule_time.split(':'))
+            print(f"Scheduling DB update task for {hour}:{minute}")
+
+            # Add new job
+            self.job = self.scheduler.add_job(
+                self.run_update_task,
+                CronTrigger(hour=hour, minute=minute),
+                id='db_update_task',
+                replace_existing=True
+            )
+            print(f"Added new DB update job with ID: db_update_task")
+
+            # Start scheduler if not running
+            if not self.scheduler.running:
+                print("Starting DB update scheduler...")
+                self.scheduler.start()
+                print("DB update scheduler started successfully")
+
+            # Print next run time for verification
+            next_run = self.job.next_run_time
+            print(f"Next scheduled DB update run time: {next_run}")
+
+        except Exception as e:
+            print(f"Error in DB update schedule_task: {str(e)}")
+
+    def get_time_until_next_run(self) -> str:
+        """Calculate time remaining until next database update"""
+        next_run = self.update_state.calculate_next_run()
+        if not next_run:
+            return "Not scheduled"
+
+        now = datetime.now()
+        time_diff = next_run - now
+        hours = time_diff.seconds // 3600
+        minutes = (time_diff.seconds % 3600) // 60
         return f"{hours}h {minutes}m"
