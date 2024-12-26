@@ -37,6 +37,18 @@ services:
     restart: always
     networks:
       - stockwise_network
+  # SMTP Service
+  smtp:
+    image: postfix:latest
+    container_name: stockwise-smtp
+    environment:
+      - POSTFIX_HOSTNAME=stockwise-smtp.local
+      - TZ=America/Chicago
+    ports:
+      - "25:25"
+    restart: always
+    networks:
+      - stockwise_network
 
 networks:
   stockwise_network:
