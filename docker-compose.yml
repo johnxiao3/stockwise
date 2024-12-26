@@ -42,15 +42,11 @@ services:
       - stockwise_network
   # SMTP Service
   smtp:
-    image: boky/postfix
+    image: namshi/smtp
     container_name: stockwise-smtp
     environment:
-      - HOSTNAME=stockwise-smtp.local
+      - RELAY_NETWORKS=:0.0.0.0/0
       - TZ=America/Chicago
-      - ALLOW_EMPTY_SENDER_DOMAINS=1
-      - MYNETWORKS=0.0.0.0/0
-      - POSTFIX_MYHOSTNAME=stockwise-smtp.local
-      - POSTFIX_MYNETWORKS=0.0.0.0/0
     ports:
       - "25:25"
     restart: always
