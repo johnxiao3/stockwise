@@ -16,6 +16,9 @@ services:
       - PORT=8000
       - DB_PATH=/app/static/database.db
       - TZ=America/Chicago
+      # Add SMTP environment variables
+      - SMTP_HOST=smtp
+      - SMTP_PORT=25
     restart: always
     networks:
       - stockwise_network
@@ -44,6 +47,7 @@ services:
     environment:
       - HOSTNAME=stockwise-smtp.local
       - TZ=America/Chicago
+      - ALLOW_EMPTY_SENDER_DOMAINS=1
     ports:
       - "25:25"
     restart: always
