@@ -39,10 +39,10 @@ services:
       - stockwise_network
   # SMTP Service
   smtp:
-    image: postfix:latest
+    image: boky/postfix
     container_name: stockwise-smtp
     environment:
-      - POSTFIX_HOSTNAME=stockwise-smtp.local
+      - HOSTNAME=stockwise-smtp.local
       - TZ=America/Chicago
     ports:
       - "25:25"
