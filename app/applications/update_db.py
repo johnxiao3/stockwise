@@ -15,7 +15,7 @@ class LogManager:
         open(log_file_path, 'w').close()
     
     def log(self, message):
-        timestamp = datetime.now().strftime('[%d%m%Y]')
+        timestamp = datetime.now().strftime('[%Y%m%d]')
         if message == '':
             log_entry = f"{message}"
         else:

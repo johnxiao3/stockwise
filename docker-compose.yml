@@ -15,6 +15,7 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - DB_PATH=/app/static/database.db
+      - TZ=America/Chicago
     restart: always
     networks:
       - stockwise_network
@@ -22,6 +23,8 @@ services:
   nginx:
     image: nginx:alpine
     container_name: stockwise-nginx
+    environment:
+      - TZ=America/Chicago
     ports:
       - "80:80"
       - "443:443"

@@ -4,15 +4,17 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TZ=America/Chicago
 
-# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    tzdata && \
+    cp /usr/share/zoneinfo/America/Chicago /etc/localtime && \
+    echo "America/Chicago" > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
