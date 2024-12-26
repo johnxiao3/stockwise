@@ -14,8 +14,4 @@ python-dotenv==1.0.0
 pydantic==2.4.2
 pydantic-settings==2.0.3
 pandas
-<<<<<<< HEAD
 yfiance
-=======
-yfinance
->>>>>>> ff1a68a21cb5e360ca17980d8c823de1258fa2b8
