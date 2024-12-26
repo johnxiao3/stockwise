@@ -42,15 +42,18 @@ services:
       - stockwise_network
   # SMTP Service
   smtp:
-      image: namshi/smtp
-      container_name: stockwise-smtp
-      environment:
-        - HOSTNAME=tianshen.store
-        - RELAY_NETWORKS=:0.0.0.0/0
-      ports:
-        - "25:25"
-      networks:
-        - stockwise_network
+    image: namshi/smtp
+    container_name: stockwise-smtp
+    environment:
+      - HOSTNAME=tianshen.store
+      - MAILNAME=tianshen.store
+      - RELAY_NETWORKS=:0.0.0.0/0
+      - RELAY_FROM_HOST=tianshen.store
+      - START_TLS=yes
+    ports:
+      - "25:25"
+    networks:
+      - stockwise_network
 
 networks:
   stockwise_network:
