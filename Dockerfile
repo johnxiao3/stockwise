@@ -12,15 +12,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     tzdata && \
-    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
-    echo $TZ > /etc/timezone && \
-    rm -rf /var/lib/apt/lists/*
+    cp /usr/share/zoneinfo/America/Chicago /etc/localtime && \
+    echo "America/Chicago" > /etc/timezone && \
+    dpkg-reconfigure -f noninteractive tzdata
 
-ENV TZ=America/Chicago
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
-    echo "$TZ" > /etc/timezone && \
-    dpkg-reconfigure --frontend noninteractive tzdata
-    
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
