@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
 import asyncio
-import os
+import os,sys,subprocess
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from ..models.strading_state import TradingState
 from ..models.db_update_state import DBUpdateState
+from ..applications.update_db import update_database
 
 class TradingScheduler:
     def __init__(self, trading_state: TradingState):
@@ -98,6 +99,11 @@ class DBUpdateScheduler:
 
         self.update_state.last_run = datetime.now()
         self.update_state.save_config()
+
+        #DB_PATH = "static/stock_data.db"
+        #update_database(DB_PATH, period='current')
+        # Launch subprocess
+        subprocess.Popen([sys.executable, 'app/applications/update_db.py'])
 
         # Add your database update logic here
         # For example:

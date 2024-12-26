@@ -16,8 +16,11 @@ class LogManager:
     
     def log(self, message):
         timestamp = datetime.now().strftime('[%d%m%Y]')
-        log_entry = f"{timestamp}: {message}"
-        print(message)  # Still print to console
+        if message == '':
+            log_entry = f"{message}"
+        else:
+            log_entry = f"{timestamp}: {message}"
+        print(message,len(message))  # Still print to console
         self.logs.insert(0, log_entry)  # Insert at beginning for reverse order
         
         # Write all logs to file
@@ -141,13 +144,13 @@ def update_database(db_path, period='current'):
     
     for idx, symbol in enumerate(stocks, 1):
         try:
-            logger.log(f"\nProcessing {symbol} ({idx}/{total_stocks})")
+            logger.log(f"Processing {symbol} ({idx}/{total_stocks})")
             
             need_daily = not check_data_completeness(conn, symbol, start_date, end_date, 'daily')
             need_weekly = is_friday and not check_data_completeness(conn, symbol, start_date, end_date, 'weekly')
             
             if not need_daily and not need_weekly:
-                logger.log(f"Data is up to date for {symbol}")
+                logger.log(f"Data is up to date for {symbol}\n")
                 continue
                 
             stock = yf.Ticker(symbol)
@@ -230,7 +233,7 @@ def update_database(db_path, period='current'):
             logger.log(f"Error processing {symbol}: {str(e)}")
             continue
     
-    logger.log("\nUpdate Summary:")
+    logger.log("Update Summary:")
     logger.log(f"Daily records added: {records_added['daily']} (API calls: {api_calls['daily']})")
     logger.log(f"Weekly records added: {records_added['weekly']} (API calls: {api_calls['weekly']})")
     
@@ -240,12 +243,12 @@ def update_database(db_path, period='current'):
     cursor.execute("SELECT COUNT(*) FROM stock_prices WHERE timeframe = 'weekly'")
     total_weekly = cursor.fetchone()[0]
     
-    logger.log(f"\nFinal Database State:")
+    logger.log(f"Final Database State:")
     logger.log(f"Total daily records: {total_daily}")
     logger.log(f"Total weekly records: {total_weekly}")
     
     conn.close()
-    logger.log("\nUpdate process completed!")
+    logger.log("Update process completed!")
 
 if __name__ == "__main__":
     DB_PATH = "static/stock_data.db"

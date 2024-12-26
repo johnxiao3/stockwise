@@ -260,12 +260,14 @@
     </div>
 
     <!-- Debug Info -->
+    <!--
     <div class="update-card debug-card">
         <div class="card-header">
             <h2>Debug Info</h2>
         </div>
         <pre id="debugInfo">Waiting for API calls...</pre>
     </div>
+    -->
 </div>
 {% endblock %}
 
@@ -274,9 +276,10 @@
     
     // Debug logging
     function logDebug(message) {
-        const debugElement = document.getElementById('debugInfo');
-        const timestamp = new Date().toISOString();
-        debugElement.textContent += `\n${timestamp}: ${message}`;
+        //const debugElement = document.getElementById('debugInfo');
+        //const timestamp = new Date().toISOString();
+        //debugElement.textContent += `\n${timestamp}: ${message}`;
+        return;
     }
 
     // Calculate time until next run
