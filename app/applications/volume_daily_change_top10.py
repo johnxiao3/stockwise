@@ -24,7 +24,7 @@ def calculate_volume_metrics(ticker):
         data = stock.history(period="5d")
         if len(data) < 2:
             return None
-            
+        
         today_volume = data['Volume'].iloc[-1]
         prev_volume = data['Volume'].iloc[-2]
         today_price = data['Close'].iloc[-1]
@@ -42,10 +42,69 @@ def calculate_volume_metrics(ticker):
             'prev_trading_value': prev_trading_value,
             'prev_price': prev_price
         }
-        
     except Exception as e:
         print(f"Error processing {ticker}: {str(e)}")
         return None
+
+def create_html_table(df):
+    """Create HTML table with hyperlinks for stock tickers."""
+    html = '''
+    <html>
+    <head>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .stock-link {
+            color: #0066cc;
+            text-decoration: none;
+        }
+    </style>
+    </head>
+    <body>
+    <h2>Top 10 Stocks by Volume Increase</h2>
+    <table>
+        <tr>
+            <th>Ticker</th>
+            <th>Market Cap ($B)</th>
+            <th>Volume Change (%)</th>
+            <th>Prev Volume</th>
+            <th>Prev Price ($)</th>
+            <th>Trading Value ($M)</th>
+        </tr>
+    '''
+    
+    for _, row in df.iterrows():
+        html += f'''
+        <tr>
+            <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+            <td>{row['market_cap']/1e9:.2f}</td>
+            <td>{row['volume_change_pct']:.2f}</td>
+            <td>{row['prev_volume']:.0f}</td>
+            <td>{row['prev_price']:.2f}</td>
+            <td>{row['prev_trading_value']/1e6:.2f}</td>
+        </tr>
+        '''
+    
+    html += '''
+    </table>
+    </body>
+    </html>
+    '''
+    return html
 
 def analyze_volume():
     print("Fetching tickers from database...")
@@ -55,7 +114,6 @@ def analyze_volume():
     total_stocks = len(stocks_df)
     for idx, (ticker, mcap) in enumerate(zip(stocks_df['Symbol'], stocks_df['Market_Cap']), 1):
         print(f'Processing {idx}/{total_stocks}: {ticker}\r', end='')
-        
         metrics = calculate_volume_metrics(ticker)
         if metrics:
             results.append({
@@ -68,24 +126,21 @@ def analyze_volume():
             })
     
     results_df = pd.DataFrame(results)
-    # Filter for trading value > $1M before sorting
     filtered_df = results_df[results_df['prev_trading_value'] > 1000000]
     sorted_df = filtered_df.sort_values('volume_change_pct', ascending=False)
     
-    print("\n\nTop 10 stocks by volume increase:")
-    print("Ticker | Market Cap ($B) | Volume Change (%) | Prev Volume | Prev Price ($) | Trading Value ($M)")
-    print("-" * 85)
+    # Generate HTML table
+    html_content = create_html_table(sorted_df.head(10))
     
-    for _, row in sorted_df.head(10).iterrows():
-        print(f"{row['ticker']:<6} | {row['market_cap']/1e9:>13.2f} | "
-              f"{row['volume_change_pct']:>15.2f} | {row['prev_volume']:>11.0f} | "
-              f"{row['prev_price']:>13.2f} | {row['prev_trading_value']/1e6:>15.2f}")
+    # Save to file
+    with open('./static/daily_email.txt', 'w') as f:
+        f.write(html_content)
     
-    # Print tickers in requested format
+    # Print tickers list format
     print("\nStock list format:")
     top_tickers = sorted_df.head(10)['ticker'].tolist()
-    print('[' + '\n'.join(f"'{ticker}'," if i < len(top_tickers)-1 else f"'{ticker}'" 
-                       for i, ticker in enumerate(top_tickers)) + ']')
+    print('[' + '\n'.join(f"'{ticker}'," if i < len(top_tickers)-1 else f"'{ticker}'"
+          for i, ticker in enumerate(top_tickers)) + ']')
 
 if __name__ == "__main__":
     analyze_volume()

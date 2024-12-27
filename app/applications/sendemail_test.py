@@ -1,23 +1,28 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from datetime import datetime
 
-def send_email(to_email, subject, body):
+def send_email(to_email, subject):
     # Email settings
-    smtp_host = "smtp"  # Service name from docker-compose
+    smtp_host = "smtp"
     smtp_port = 25
     from_email = "stockwise@tianshen.store"
-    
+
     # Create message
-    msg = MIMEMultipart()
+    msg = MIMEMultipart('alternative')
     msg['From'] = f"StockWise <{from_email}>"
     msg['To'] = to_email
     msg['Subject'] = subject
-    
-    # Add body
-    msg.attach(MIMEText(body, 'plain'))
-    
+
+    # Read HTML content
     try:
+        with open('./static/daily_email.txt', 'r') as f:
+            html_content = f.read()
+        
+        # Attach HTML content
+        msg.attach(MIMEText(html_content, 'html'))
+
         # Connect to SMTP server
         server = smtplib.SMTP(smtp_host, smtp_port)
         server.send_message(msg)
@@ -27,10 +32,9 @@ def send_email(to_email, subject, body):
         print(f"Error sending email: {e}")
         return False
 
-# Test usage
 if __name__ == "__main__":
+    current_date = datetime.now().strftime("%Y-%m-%d")
     send_email(
         "xiaozhiyong1988@gmail.com",
-        "Test Email from Python",
-        "This is a test email sent from Python script."
+        f"StockWise Daily Volume Analysis - {current_date}"
     )
