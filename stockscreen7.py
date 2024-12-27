@@ -418,7 +418,8 @@ def filter_stock(deploy_mode, manual_date=None):
         today = manual_date
         print('today (manual mode):', today)
     else:  # develop mode (0)
-        today = '20241129'
+        #today = '20241129'
+        today = datetime.now(edt).strftime('%Y%m%d')
         print('today (develop mode):', today)
     
     # Run first function

@@ -569,10 +569,11 @@ def process_stock_tickers(tickers):
     os.makedirs(base_dir, exist_ok=True)
     
     # Process each ticker
-    for ticker in tickers:
+    for i,ticker in enumerate(tickers):
+        print(i,ticker)
         try:
             # Create filename in required format
-            filename = f'candle_{ticker}.png'
+            filename = f'candle{i:02}0_{ticker}.png'
             
             # Call update_png function with daily mode (mode=0)
             update_png(today, filename, 0)
@@ -585,16 +586,16 @@ def process_stock_tickers(tickers):
 
 if __name__ == "__main__":
     # Example stock ticker list - replace with your desired tickers
-    tickerlist = ['GILD',     
-        'PAYX',
-        'WTW',
-        'J',
-        'JBL',
-        'CYTK',
-        'RYTM',
-        'PRAX',
-        'CRGX',
-        'DOCS']
+    tickerlist = ['PG',
+        'TMUS',
+        'MCD',
+        'HON',
+        'PLD',
+        'SBUX',
+        'EQIX',
+        'BN',
+        'CRWD',
+        'CARR']
     
     # Process all tickers
     process_stock_tickers(tickerlist)

@@ -1,3 +1,4 @@
+./config/*.*
 static/*.*
 ./static/*
 static/
