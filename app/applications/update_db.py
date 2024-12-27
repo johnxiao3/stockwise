@@ -228,7 +228,7 @@ def update_database(db_path, period='current'):
                                 logger.log(f"Error inserting weekly record for {symbol} on {row['date']}: {str(e)}")
             
             conn.commit()
-            
+            time.sleep(0.2)
         except Exception as e:
             logger.log(f"Error processing {symbol}: {str(e)}")
             continue

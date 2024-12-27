@@ -7,6 +7,66 @@ from services import yfiance_local as yf
 import warnings
 warnings.filterwarnings("ignore")
 
+def create_html_table_rsi(df):
+    """Create HTML table with hyperlinks for RSI data."""
+    html = '''
+    <html>
+    <head>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .stock-link {
+            color: #0066cc;
+            text-decoration: none;
+        }
+    </style>
+    </head>
+    <body>
+    <h2>Top 10 Stocks with Lowest RSI (6)</h2>
+    <table>
+        <tr>
+            <th>Ticker</th>
+            <th>Market Cap ($B)</th>
+            <th>RSI</th>
+            <th>Today's Volume</th>
+            <th>Price ($)</th>
+            <th>Trading Value ($M)</th>
+        </tr>
+    '''
+    
+    for _, row in df.iterrows():
+        html += f'''
+        <tr>
+            <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+            <td>{row['market_cap']/1e9:.2f}</td>
+            <td>{row['rsi']:.2f}</td>
+            <td>{row['today_volume']:.0f}</td>
+            <td>{row['today_price']:.2f}</td>
+            <td>{row['today_trading_value']/1e6:.2f}</td>
+        </tr>
+        '''
+    
+    html += '''
+    </table>
+    </body>
+    </html>
+    '''
+    return html
+
 def get_tickers_and_mcap():
     conn = sqlite3.connect('./static/stock_data.db')
     query = "SELECT Symbol, Market_Cap FROM nasdaq_screener"
@@ -76,6 +136,11 @@ def analyze_rsi():
     filtered_df = results_df[(results_df['today_trading_value'] > 1000000) & (results_df['rsi'] > 0)]
     sorted_df = filtered_df.sort_values('rsi', ascending=True)
     
+    # Generate HTML table and save
+    html_content = create_html_table_rsi(sorted_df.head(10))
+    with open('./static/daily_email_rsi.txt', 'w') as f:
+        f.write(html_content)
+        
     print("\n\nTop 10 stocks with lowest RSI (6) and trading value > $1M:")
     print("Ticker | Market Cap ($B) | RSI | Today's Volume | Price ($) | Trading Value ($M)")
     print("-" * 85)

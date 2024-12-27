@@ -133,7 +133,7 @@ def analyze_volume():
     html_content = create_html_table(sorted_df.head(10))
     
     # Save to file
-    with open('./static/daily_email.txt', 'w') as f:
+    with open('./static/daily_email_volume.txt', 'w') as f:
         f.write(html_content)
     
     # Print tickers list format

@@ -12,6 +12,60 @@ warnings.filterwarnings("ignore")
 # add edt
 edt = pytz.timezone("America/New_York")
 
+def create_html_table_buypoint(df):
+    """Create HTML table for buy point data."""
+    html = '''
+    <html>
+    <head>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .stock-link {
+            color: #0066cc;
+            text-decoration: none;
+        }
+    </style>
+    </head>
+    <body>
+    <h2>Top 10 Stocks with Buy Points</h2>
+    <table>
+        <tr>
+            <th>Ticker</th>
+            <th>Market Cap ($B)</th>
+            <th>Buy Point</th>
+        </tr>
+    '''
+    
+    for _, row in df.iterrows():
+        html += f'''
+        <tr>
+            <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+            <td>{row['market_cap']:.2f}</td>
+            <td>{row['BP']:.2f}</td>
+        </tr>
+        '''
+    
+    html += '''
+    </table>
+    </body>
+    </html>
+    '''
+    return html
+
 def get_market_cap(ticker):
     try:
         # Connect to the database
@@ -238,19 +292,19 @@ def analyze_stocks(df):
     Sort all stocks by BP first, then by market cap.
     Returns and prints only top 10 stocks from the entire sorted list.
     """
-    # Sort all stocks by BP first, then by market cap
     sorted_stocks = df.sort_values(['BP', 'market_cap'], ascending=[True, False])
-    
-    # Take only top 10 stocks
     top_10_stocks = sorted_stocks.head(10)
     
+    html_content = create_html_table_buypoint(top_10_stocks)
+    with open('./static/daily_email_buypoint.txt', 'w') as f:
+        f.write(html_content)
+    
+
     # Get the tickers as a list
     top_10_tickers = top_10_stocks['ticker'].tolist()
-    
     # Print in the requested format
     print('\n[' + '\n'.join(f"'{ticker}'," if i < len(top_10_tickers)-1 else f"'{ticker}'" 
                          for i, ticker in enumerate(top_10_tickers)) + ']')
-    
     # Return the tickers list
     return top_10_tickers
 
