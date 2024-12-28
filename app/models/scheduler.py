@@ -5,7 +5,6 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from ..models.strading_state import TradingState
 from ..models.db_update_state import DBUpdateState
-from ..applications.update_db import update_database
 
 class TradingScheduler:
     def __init__(self, trading_state: TradingState):
@@ -125,7 +124,7 @@ class DBUpdateScheduler:
             # Add new job
             self.job = self.scheduler.add_job(
                 self.run_update_task,
-                CronTrigger(hour=hour, minute=minute),
+                CronTrigger(hour=hour, minute=minute,day_of_week='mon-fri'),
                 id='db_update_task',
                 replace_existing=True
             )
@@ -139,6 +138,7 @@ class DBUpdateScheduler:
 
             # Print next run time for verification
             next_run = self.job.next_run_time
+            print('aa',next_run)
             print(f"Next scheduled DB update run time: {next_run}")
 
         except Exception as e:
@@ -149,6 +149,10 @@ class DBUpdateScheduler:
         next_run = self.update_state.calculate_next_run()
         if not next_run:
             return "Not scheduled"
+
+        # Skip if next run falls on weekend
+        while next_run.weekday() in [5, 6]:
+            next_run += timedelta(days=1)
 
         now = datetime.now()
         time_diff = next_run - now

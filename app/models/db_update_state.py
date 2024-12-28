@@ -42,12 +42,15 @@ class DBUpdateState:
         """Calculate the next run time based on schedule"""
         if not self.schedule_time:
             return None
-
         now = datetime.now()
         hour, minute = map(int, self.schedule_time.split(':'))
         next_run = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
         if next_run <= now:
+            next_run += timedelta(days=1)
+
+        # Skip weekends
+        while next_run.weekday() in [5, 6]:  # 5 is Saturday, 6 is Sunday
             next_run += timedelta(days=1)
 
         return next_run

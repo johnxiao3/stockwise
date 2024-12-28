@@ -139,7 +139,10 @@
                 <a href="/stockdetail/AAPL">Chart</a>
             </li>
             <li class="nav-item {% if request.url.path == '/stockfilter' %}active{% endif %}">
-                <a href="/stockfilter">Screen</a>
+                <a href="/stockfilter">Stock Filter</a>
+            </li>
+            <li class="nav-item {% if request.url.path == '/dailyanalysis' %}active{% endif %}">
+                <a href="/dailyanalysis">DailyAnalysis</a>
             </li>
             <li class="nav-item {% if request.url.path == '/autotrading' %}active{% endif %}">
                 <a href="/autotrading">AutoTrading</a>

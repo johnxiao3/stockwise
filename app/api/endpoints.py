@@ -137,6 +137,9 @@ async def filtered_stocks(
 async def stockfilter(request: Request):
     """Render stock filter page"""
     return templates.TemplateResponse("stock_filter_wrapper.html", {"request": request})
+@router.get("/dailyanalysis", response_class=HTMLResponse)
+async def dailyanalysis(request: Request):
+    return templates.TemplateResponse("daily_analysis.html", {"request": request})
 
 @router.get("/autotrading", response_class=HTMLResponse)
 async def stockfilter(request: Request):
