@@ -8,6 +8,46 @@ import re
 
 router = APIRouter(prefix="/api", tags=["email_subscriptions"])
 
+def send_unsubscribe_notification(to_email: str) -> bool:
+    """Send a notification email to users who have unsubscribed"""
+    # Email settings
+    smtp_host = "smtp"
+    smtp_port = 25
+    from_email = "stockwise@tianshen.store"
+    
+    # Create message
+    msg = MIMEMultipart('alternative')
+    msg['From'] = f"StockWise <{from_email}>"
+    msg['To'] = to_email
+    msg['Subject'] = "StockWise Subscription Cancelled"
+    
+    # Unsubscribe notification HTML content
+    unsubscribe_html = """
+    <html>
+    <body>
+        <h2>StockWise Subscription Cancelled</h2>
+        <p>Your subscription to StockWise Daily Updates has been cancelled.</p>
+        <p>We're sorry to see you go! If you change your mind, you can always subscribe again by visiting our website.</p>
+        <p>If you have any feedback about how we could improve our service, please feel free to reply to this email.</p>
+        <br>
+        <p>Best regards,<br>Your StockWise Team</p>
+    </body>
+    </html>
+    """
+    
+    try:
+        # Attach HTML content
+        msg.attach(MIMEText(unsubscribe_html, 'html'))
+        
+        # Connect to SMTP server
+        server = smtplib.SMTP(smtp_host, smtp_port)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Error sending unsubscribe notification: {e}")
+        return False
+
 def is_valid_email(email: str) -> bool:
     """Basic email validation using regex"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -34,6 +74,7 @@ def setup_email_subscriptions_table():
     conn.close()
 
 def send_welcome_email(to_email: str) -> bool:
+    """Send a welcome email to newly subscribed users"""
     # Email settings
     smtp_host = "smtp"
     smtp_port = 25
@@ -136,6 +177,11 @@ async def unsubscribe(email_data: dict):
                       (email,))
         conn.commit()
         conn.close()
+        
+        # Send unsubscribe notification email
+        email_sent = send_unsubscribe_notification(email)
+        if not email_sent:
+            print(f"Warning: Unsubscribe notification email could not be sent to {email}")
         
         return {"message": "Unsubscription successful"}
         
