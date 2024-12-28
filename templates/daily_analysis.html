@@ -1,10 +1,116 @@
 <!-- templates/stock_filter_wrapper.html -->
 {% extends "base.html" %}
 
-{% block title %} Stock Screen{% endblock %}
-
-
+{% block title %}Stock Screen{% endblock %}
 
 {% block content %}
+    <div class="subscription-container" style="margin: 20px; padding: 20px; border: 1px solid #ddd; border-radius: 5px;">
+        <h3>Daily Stock Updates Subscription</h3>
+        <div class="input-group" style="margin: 10px 0;">
+            <input type="email" id="emailInput" placeholder="Enter your email" 
+                   style="padding: 8px; margin-right: 10px; width: 250px;">
+            <button onclick="handleSubscribe()" 
+                    style="padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                Subscribe
+            </button>
+            <button onclick="handleUnsubscribe()" 
+                    style="padding: 8px 16px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Unsubscribe
+            </button>
+        </div>
+        <div id="messageArea" style="margin-top: 10px; padding: 10px; display: none;"></div>
+    </div>
+
     {% include "daily_email_combined.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function handleSubscribe() {
+    const email = document.getElementById('emailInput').value;
+    const messageArea = document.getElementById('messageArea');
+    
+    if (!email || !email.includes('@')) {
+        showMessage('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/subscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage(`Your email: ${email} is subscribed! You should receive a welcome email shortly.`, 'success');
+            document.getElementById('emailInput').value = '';
+        } else {
+            showMessage(data.detail || 'Subscription failed. Please try again.', 'error');
+        }
+    } catch (error) {
+        showMessage('An error occurred. Please try again later.', 'error');
+    }
+}
+
+async function handleUnsubscribe() {
+    const email = document.getElementById('emailInput').value;
+    const messageArea = document.getElementById('messageArea');
+    
+    if (!email || !email.includes('@')) {
+        showMessage('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/unsubscribe', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: email })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showMessage(`Your email: ${email} has been unsubscribed.`, 'success');
+            document.getElementById('emailInput').value = '';
+        } else {
+            showMessage(data.detail || 'Unsubscribe failed. Please try again.', 'error');
+        }
+    } catch (error) {
+        showMessage('An error occurred. Please try again later.', 'error');
+    }
+}
+
+function showMessage(message, type) {
+    const messageArea = document.getElementById('messageArea');
+    messageArea.style.display = 'block';
+    messageArea.style.padding = '10px';
+    messageArea.style.marginTop = '10px';
+    messageArea.style.borderRadius = '4px';
+    
+    if (type === 'success') {
+        messageArea.style.backgroundColor = '#dff0d8';
+        messageArea.style.color = '#3c763d';
+        messageArea.style.border = '1px solid #d6e9c6';
+    } else {
+        messageArea.style.backgroundColor = '#f2dede';
+        messageArea.style.color = '#a94442';
+        messageArea.style.border = '1px solid #ebccd1';
+    }
+    
+    messageArea.textContent = message;
+    
+    // Hide message after 5 seconds
+    setTimeout(() => {
+        messageArea.style.display = 'none';
+    }, 5000);
+}
+</script>
 {% endblock %}

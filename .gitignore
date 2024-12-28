@@ -2,6 +2,8 @@
 config/*.*
 config/
 
+templates/daily_email.combined.html
+
 static/*.*
 ./static/*
 static/

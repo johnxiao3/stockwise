@@ -3,10 +3,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
 from app.database import initialize_database
-from app.api.endpoints import router
+from app.api import router  # Changed to import from app.api instead of endpoints directly
 from app.config import HOST, PORT, DB_PATH
 import os
-
+import sqlite3
 from fastapi import HTTPException, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
