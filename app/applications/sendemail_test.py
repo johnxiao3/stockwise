@@ -17,7 +17,7 @@ def send_email(to_email, subject):
 
     # Read HTML content
     try:
-        with open('./static/daily_email.txt', 'r') as f:
+        with open('./static/daily_email_combined.txt', 'r') as f:
             html_content = f.read()
         
         # Attach HTML content

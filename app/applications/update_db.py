@@ -20,7 +20,7 @@ class LogManager:
             log_entry = f"{message}"
         else:
             log_entry = f"{timestamp}: {message}"
-        print(message,len(message))  # Still print to console
+        print(message)  # Still print to console
         self.logs.insert(0, log_entry)  # Insert at beginning for reverse order
         
         # Write all logs to file
