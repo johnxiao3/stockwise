@@ -1,5 +1,7 @@
 import os,sys
-import app.services.yfiance_local as yf
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from services import yfiance_local as yf
+from services.calculate_turnover_rate import get_latest_turnover_rate
 import pandas as pd
 import sqlite3
 import numpy as np
@@ -12,41 +14,45 @@ warnings.filterwarnings("ignore")
 # add edt
 edt = pytz.timezone("America/New_York")
 
-def create_html_table_buypoint(df):
-    """Create HTML table for buy point data."""
-    html = '''
+def create_html_table_buypoint(df, title, filename):
+    """Create HTML table for buy point data with additional columns."""
+    html = f'''
     <html>
     <head>
     <style>
-        table {
+        table {{
             border-collapse: collapse;
             width: 100%;
             margin: 20px 0;
-        }
-        th, td {
+        }}
+        th, td {{
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
-        }
-        th {
+        }}
+        th {{
             background-color: #f2f2f2;
-        }
-        tr:nth-child(even) {
+        }}
+        tr:nth-child(even) {{
             background-color: #f9f9f9;
-        }
-        .stock-link {
+        }}
+        .stock-link {{
             color: #0066cc;
             text-decoration: none;
-        }
+        }}
     </style>
     </head>
     <body>
-    <h2>Top 10 Stocks with Buy Points</h2>
+    <h2>{title}</h2>
     <table>
         <tr>
             <th>Ticker</th>
+            <th>Close Price</th>
             <th>Market Cap ($B)</th>
-            <th>Buy Point</th>
+            <th>Volume(M)</th>
+            <th>Turnover Rate (%)</th>
+            <th>RSI(6)</th>
+            <th>BP</th>
         </tr>
     '''
     
@@ -54,7 +60,11 @@ def create_html_table_buypoint(df):
         html += f'''
         <tr>
             <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+            <td>{row['close_price']:.2f}</td>
             <td>{row['market_cap']:.2f}</td>
+            <td>{row['volume']/1000000:.2f}</td>
+            <td>{row['turnover_rate']:.2f}</td>
+            <td>{row['rsi_6']:.2f}</td>
             <td>{row['BP']:.2f}</td>
         </tr>
         '''
@@ -119,46 +129,6 @@ def calculate_crossover_days(macd_hist):
         elif macd_hist[i] > 0 and macd_hist[i-1] <= 0:
             return i,'+'
     return None, ''
-
-# Function to fit a line and estimate days to positive
-def fit_line_and_predict(macd_hist_values):
-    x = np.array([1, 2, 3])
-    y = macd_hist_values[-3:]
-    p = np.polyfit(x, y, 1)
-    days_to_positive = -p[1] / p[0]
-    return p, days_to_positive
-
-# Modified plot_candlestick function to use continuous trading day indices
-def plot_candlestick(ax, data):
-    for idx in range(len(data)):
-        open_price = data['Open'].iloc[idx]
-        close_price = data['Close'].iloc[idx]
-        high_price = data['High'].iloc[idx]
-        low_price = data['Low'].iloc[idx]
-        
-        # Use integer index instead of date
-        ax.plot([idx, idx], [low_price, high_price], color='black',linewidth=1,zorder=1)
-        ax.add_patch(plt.Rectangle((idx - 0.2, min(open_price, close_price)), 
-                                 0.4, 
-                                 abs(close_price - open_price),
-                                 color='green' if close_price >= open_price else 'red', 
-                                 alpha=1.0,zorder=2))
-
-# Function to create custom date formatter for x-axis
-def format_date(x, p, trading_dates):
-    if x >= 0 and x < len(trading_dates):
-        return trading_dates[int(x)].strftime('%Y-%m-%d')
-    return ''
-
-# Function to fit line for EMA and calculate slope and error
-def fit_ema_line(data, start_idx, end_idx):
-    y = data['EMA_3'].iloc[start_idx:end_idx + 1].values
-    x = np.arange(len(y))
-    p = np.polyfit(x, y, 1)
-    slope, intercept = p
-    fit_values = np.polyval(p, x)
-    mse = np.mean((y - fit_values) ** 2)
-    return slope, mse, fit_values
 
 
 def calculate_rsi(data, window):
@@ -286,27 +256,140 @@ def find_buy_sell_points7(x_valid,y_valid,hist_valid):
         
         i += 1  # Move to the next point
     return buy_points,sell_points
-# After the loop ends, you can analyze the data:
 def analyze_stocks(df):
     """
-    Sort all stocks by BP first, then by market cap.
-    Returns and prints only top 10 stocks from the entire sorted list.
+    Create two sorted lists:
+    1. Sort by BP first, then turnover rate (descending)
+    2. Sort by BP first, then RSI6 (ascending)
+    Returns both lists of tickers
     """
-    sorted_stocks = df.sort_values(['BP', 'market_cap'], ascending=[True, False])
-    top_10_stocks = sorted_stocks.head(10)
-    
-    html_content = create_html_table_buypoint(top_10_stocks)
-    with open('./static/daily_email_buypoint.txt', 'w') as f:
-        f.write(html_content)
-    
-
-    # Get the tickers as a list
-    top_10_tickers = top_10_stocks['ticker'].tolist()
-    # Print in the requested format
-    print('\n[' + '\n'.join(f"'{ticker}'," if i < len(top_10_tickers)-1 else f"'{ticker}'" 
-                         for i, ticker in enumerate(top_10_tickers)) + ']')
-    # Return the tickers list
-    return top_10_tickers
+    try:
+        # First sorting: BP and turnover_rate
+        sorted_by_turnover = df.sort_values(['BP', 'turnover_rate'], ascending=[True, False])
+        top_10_turnover = sorted_by_turnover.head(10)
+        
+        # Second sorting: BP and RSI6
+        sorted_by_rsi = df.sort_values(['BP', 'market_cap'], ascending=[True, False])
+        top_10_rsi = sorted_by_rsi.head(10)
+        
+        # Create and save first table (BP and Turnover Rate)
+        html_turnover = f'''
+        <html><head><style>
+            table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            .stock-link {{ color: #0066cc; text-decoration: none; }}
+        </style></head>
+        <body>
+        <h2>Top 10 Stocks Sorted by BP and Turnover Rate</h2>
+        <table>
+            <tr>
+                <th>Ticker</th>
+                <th>Close Price</th>
+                <th>Market Cap ($B)</th>
+                <th>Volume(M)</th>
+                <th>Turnover Rate (%)</th>
+                <th>RSI(6)</th>
+                <th>BP</th>
+            </tr>'''
+        
+        for _, row in top_10_turnover.iterrows():
+            html_turnover += f'''
+            <tr>
+                <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+                <td>{row['close_price']:.2f}</td>
+                <td>{row['market_cap']:.2f}</td>
+                <td>{row['volume']/1000000:.2f}M</td>
+                <td>{row['turnover_rate']:.2f}</td>
+                <td>{row['rsi_6']:.2f}</td>
+                <td>{row['BP']:.2f}</td>
+            </tr>'''
+        
+        html_turnover += '</table></body></html>'
+        
+        # Create and save second table (BP and RSI6)
+        html_rsi = f'''
+        <html><head><style>
+            table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+            th {{ background-color: #f2f2f2; }}
+            tr:nth-child(even) {{ background-color: #f9f9f9; }}
+            .stock-link {{ color: #0066cc; text-decoration: none; }}
+        </style></head>
+        <body>
+        <h2>Top 10 Stocks Sorted by BP and RSI(6)</h2>
+        <table>
+            <tr>
+                <th>Ticker</th>
+                <th>Close Price</th>
+                <th>Market Cap ($B)</th>
+                <th>Volume(M)</th>
+                <th>Turnover Rate (%)</th>
+                <th>RSI(6)</th>
+                <th>BP</th>
+            </tr>'''
+        
+        for _, row in top_10_rsi.iterrows():
+            html_rsi += f'''
+            <tr>
+                <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+                <td>{row['close_price']:.2f}</td>
+                <td>{row['market_cap']:.2f}</td>
+                <td>{row['volume']/1000000:.2f}M</td>
+                <td>{row['turnover_rate']:.2f}</td>
+                <td>{row['rsi_6']:.2f}</td>
+                <td>{row['BP']:.2f}</td>
+            </tr>'''
+        
+        html_rsi += '</table></body></html>'
+        
+        # Save both HTML tables
+        with open('./static/daily_email_buypoint_turnover.txt', 'w') as f:
+            f.write(html_turnover)
+        with open('./static/daily_email_buypoint_mcap.txt', 'w') as f:
+            f.write(html_rsi)
+        
+        # Print first table (BP and Turnover Rate)
+        print("\nTop 10 Stocks Sorted by BP and Turnover Rate:")
+        print("-" * 70)
+        print(f"{'Ticker':<8} {'Close':<8} {'MCap($B)':<10} {'Volume(M)':<12} {'Turnover%':<10} {'RSI(6)':<8} {'BP':<6}")
+        print("-" * 70)
+        for _, row in top_10_turnover.iterrows():
+            print(f"{row['ticker']:<8} {row['close_price']:<8.2f} {row['market_cap']:<10.2f} "
+                  f"{row['volume']/1000000:<12.2f} {row['turnover_rate']:<10.2f} "
+                  f"{row['rsi_6']:<8.2f} {row['BP']:<6.2f}")
+        print("-" * 70)
+        
+        # Print second table (BP and MCap)
+        print("\nTop 10 Stocks Sorted by BP and MCap:")
+        print("-" * 70)
+        print(f"{'Ticker':<8} {'Close':<8} {'MCap($B)':<10} {'Volume(M)':<12} {'Turnover%':<10} {'RSI(6)':<8} {'BP':<6}")
+        print("-" * 70)
+        for _, row in top_10_rsi.iterrows():
+            print(f"{row['ticker']:<8} {row['close_price']:<8.2f} {row['market_cap']:<10.2f} "
+                  f"{row['volume']/1000000:<12.2f} {row['turnover_rate']:<10.2f} "
+                  f"{row['rsi_6']:<8.2f} {row['BP']:<6.2f}")
+        print("-" * 70)
+        
+        # Get and print ticker lists
+        turnover_tickers = top_10_turnover['ticker'].tolist()
+        rsi_tickers = top_10_rsi['ticker'].tolist()
+        
+        print("\nTickers sorted by BP and Turnover Rate:")
+        print('[' + '\n'.join(f"'{ticker}'," if i < len(turnover_tickers)-1 else f"'{ticker}'" 
+                             for i, ticker in enumerate(turnover_tickers)) + ']')
+        
+        print("\nTickers sorted by BP and RSI(6):")
+        print('[' + '\n'.join(f"'{ticker}'," if i < len(rsi_tickers)-1 else f"'{ticker}'" 
+                             for i, ticker in enumerate(rsi_tickers)) + ']')
+        
+        # Return both lists of tickers
+        return turnover_tickers, rsi_tickers
+        
+    except Exception as e:
+        print(f"Error in analyze_stocks: {str(e)}")
+        return [], []  # Return empty lists in case of error
 
 def analyze_and_plot_stocks(today, future_days=0):
     # Define the number of future days to plot after today
@@ -327,7 +410,13 @@ def analyze_and_plot_stocks(today, future_days=0):
     tot_filtered = 0
     sel_idx=0
     # Create an empty DataFrame before the loop
-    stock_data = pd.DataFrame(columns=['ticker', 'market_cap', 'BP'])
+    stock_data = pd.DataFrame(columns=['ticker', 
+                                       'close_price',
+                                       'market_cap', 
+                                       'volume',
+                                       'turnover_rate',
+                                       'rsi_6',
+                                       'BP'])
     for idx, stockticker in enumerate(tickers, start=1):
         #if idx<415:
         #    continue
@@ -449,10 +538,14 @@ def analyze_and_plot_stocks(today, future_days=0):
             if market_cap is None:
                 market_cap = 0  # or handle the error case as needed
             print(f'|{sel_idx:>4}/{total_stocks}|{stockticker:<5}|f:{tot_filtered:<2}|{market_cap/1000000000:<3.1f}B|BP:{min_buy}')
-            # Inside your loop, after the print statement, add this:
+            # Inside your main filtering loop, update the stock_data DataFrame creation:
             stock_data.loc[len(stock_data)] = {
                 'ticker': stockticker,
+                'close_price': today_close_price,
                 'market_cap': market_cap/1000000000,  # Converting to billions
+                'volume': data['Volume'].iloc[-1],
+                'turnover_rate': get_latest_turnover_rate(stockticker)['turnover_rate'],
+                'rsi_6': data['RSI_6'].iloc[-1],
                 'BP': min_buy
             }
         except:

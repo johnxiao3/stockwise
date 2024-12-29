@@ -54,8 +54,10 @@ def combine_daily_emails():
     # List of files to combine
     files = [
         ('Volume Analysis', './static/daily_email_volume.txt'),
+        ('Buy Points Analysis', './static/daily_email_buypoint_mcap.txt'),
+        ('Buy Points Analysis', './static/daily_email_buypoint_turnover.txt'),
         ('RSI Analysis', './static/daily_email_rsi.txt'),
-        ('Buy Points Analysis', './static/daily_email_buypoint.txt')
+
     ]
     
     # Process each file
@@ -91,7 +93,7 @@ def combine_daily_emails():
     '''
     
     # Save the combined file
-    with open('./static/daily_email_combined.txt', 'w') as f:
+    with open('./templates/daily_email_combined.html', 'w') as f:
         f.write(combined_html)
 
 if __name__ == "__main__":
