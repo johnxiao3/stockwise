@@ -190,3 +190,29 @@ async def unsubscribe(email_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, 
                           detail=str(e))
+
+def print_all_email_subscriptions():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Query all rows from the email_subscriptions table
+    cursor.execute('SELECT * FROM email_subscriptions')
+    subscriptions = cursor.fetchall()
+    
+    # Print each subscription
+    print("\nAll Email Subscriptions:")
+    print("-" * 60)
+    for sub in subscriptions:
+        print(f"ID: {sub['id']}")
+        print(f"Email: {sub['email']}")
+        print(f"Subscribed at: {sub['subscribed_at']}")
+        print("-" * 60)
+    
+    # Print total count
+    print(f"Total subscriptions: {len(subscriptions)}\n")
+    
+    conn.close()
+
+if __name__ == "__main__":
+    # Then print all subscriptions
+    print_all_email_subscriptions()
