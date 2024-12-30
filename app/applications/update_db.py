@@ -250,6 +250,8 @@ def update_database(db_path, period='current'):
     conn.close()
     logger.log("Update process completed!")
 
+    return records_added['daily'] + records_added['weekly']
+
 if __name__ == "__main__":
     DB_PATH = "static/stock_data.db"
     

@@ -318,7 +318,7 @@ def analyze_stocks(df):
             .stock-link {{ color: #0066cc; text-decoration: none; }}
         </style></head>
         <body>
-        <h2>Top 10 Stocks Sorted by BP and RSI(6)</h2>
+        <h2>Top 10 Stocks Sorted by BP and MCap</h2>
         <table>
             <tr>
                 <th>Ticker</th>
