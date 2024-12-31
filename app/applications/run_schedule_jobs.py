@@ -7,7 +7,7 @@ from applications.schedule_jobs.top10_volume import analyze_volume
 from applications.schedule_jobs.combine_daily_emails import combine_daily_emails
 from applications.schedule_jobs.sendemail_test import send_emails_to_all_subscribers
 
-
+import time
 
 
 if __name__ == "__main__":
@@ -23,6 +23,7 @@ if __name__ == "__main__":
             print(f"Reached maximum attempts ({max_attempts})")
         elif total_added == 0:
             print(f"Update completed successfully after {attempts} attempts")    
+        time.sleep(20)
 
     filter_stock(0)
     analyze_rsi()

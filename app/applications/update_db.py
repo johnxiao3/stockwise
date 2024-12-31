@@ -2,7 +2,7 @@ import sqlite3
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
-import time
+import time 
 import os
 
 class LogManager:
@@ -125,115 +125,138 @@ def check_data_completeness(conn, symbol, start_date, end_date, timeframe):
         
     return existing_days >= expected_days
 
-def update_database(db_path, period='current'):
+def download_batch_data(symbols, start_date, end_date, interval):
+    """Download data for multiple symbols in a single API call."""
+    try:
+        data = yf.download(
+            tickers=symbols,
+            start=start_date.strftime('%Y-%m-%d'),
+            end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
+            interval=interval,
+            group_by='ticker',
+            auto_adjust=False,
+            actions=True
+        )
+        
+        if data.empty:
+            return None
+            
+        return data
+    except Exception as e:
+        if "Too many requests" in str(e) or "429" in str(e):
+            return None
+        raise e
+
+def process_batch_data(data, timeframe, conn, logger):
+    """Process and insert batch data into database."""
+    records_added = 0
+    
+    if data is None or data.empty:
+        return 0
+
+    # Get list of symbols from the multi-level columns
+    symbols = list(set([col[0] for col in data.columns]))
+    
+    for symbol in symbols:
+        try:
+            # Create DataFrame for the symbol with correct column names
+            symbol_data = pd.DataFrame({
+                'date': data.index,
+                'open': data[(symbol, 'Open')],
+                'high': data[(symbol, 'High')],
+                'low': data[(symbol, 'Low')],
+                'close': data[(symbol, 'Close')],
+                'volume': data[(symbol, 'Volume')],
+                'dividends': data[(symbol, 'Dividends')],
+                'stock_splits': data[(symbol, 'Stock Splits')]
+            })
+            
+            # Convert date to string format
+            symbol_data['date'] = symbol_data['date'].dt.strftime('%Y-%m-%d')
+            
+            # Add symbol and timeframe columns
+            symbol_data['symbol'] = symbol
+            symbol_data['timeframe'] = timeframe
+            
+            # Insert records into database
+            for _, row in symbol_data.iterrows():
+                if not check_existing_records(conn, row['symbol'], row['date'], timeframe):
+                    try:
+                        row.to_frame().T.to_sql('stock_prices', conn, if_exists='append', index=False)
+                        if verify_insertion(conn, row['symbol'], row['date'], timeframe):
+                            records_added += 1
+                            logger.log(f"Successfully inserted {timeframe} record for {symbol} on {row['date']}")
+                    except Exception as e:
+                        logger.log(f"Error inserting {timeframe} record for {symbol} on {row['date']}: {str(e)}")
+                        
+        except Exception as e:
+            logger.log(f"Error processing {symbol}: {str(e)}")
+            continue
+            
+    return records_added
+
+def update_database(db_path, period='current', batch_size=20):
     """Update database with stock data for the specified period."""
     logger = LogManager('./static/logs/update_db.txt')
     conn = sqlite3.connect(db_path)
     stocks, total_stocks = get_stocks_to_update(db_path)
     
     logger.log(f"Starting update process for {total_stocks} stocks...")
-    logger.log(f"Found stocks: {', '.join(stocks[:5])}{'...' if len(stocks) > 5 else ''}")
-    
     start_date, end_date, is_friday = get_date_ranges(period)
     
-    logger.log(f"Fetching data for period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-    logger.log(f"Processing {'weekly data' if is_friday else 'only daily data'}")
+    logger.log(f"Checking data completeness for period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    
+    # Pre-filter stocks that need updates
+    stocks_needing_update = []
+    for symbol in stocks:
+        need_daily = not check_data_completeness(conn, symbol, start_date, end_date, 'daily')
+        need_weekly = is_friday and not check_data_completeness(conn, symbol, start_date, end_date, 'weekly')
+        if need_daily or need_weekly:
+            stocks_needing_update.append(symbol)
+    
+    if not stocks_needing_update:
+        logger.log("All stocks are up to date. No downloads needed.")
+        conn.close()
+        return 0
+        
+    logger.log(f"Found {len(stocks_needing_update)} stocks needing updates")
+    logger.log(f"Stocks to update: {', '.join(stocks_needing_update[:5])}{'...' if len(stocks_needing_update) > 5 else ''}")
     
     records_added = {'daily': 0, 'weekly': 0}
     api_calls = {'daily': 0, 'weekly': 0}
     
-    for idx, symbol in enumerate(stocks, 1):
-        try:
-            logger.log(f"Processing {symbol} ({idx}/{total_stocks})")
+    # Process stocks in batches
+    for i in range(0, len(stocks_needing_update), batch_size):
+        batch = stocks_needing_update[i:i + batch_size]
+        logger.log(f"\nProcessing batch {i//batch_size + 1}/{(len(stocks_needing_update) + batch_size - 1)//batch_size}")
+        logger.log(f"Batch symbols: {', '.join(batch)}")
+        
+        # Daily data
+        api_calls['daily'] += 1
+        daily_data = download_batch_data(batch, start_date, end_date, '1d')
+        
+        if daily_data is None:
+            logger.log("Rate limit reached for daily data. Stopping updates.")
+            break
             
-            need_daily = not check_data_completeness(conn, symbol, start_date, end_date, 'daily')
-            need_weekly = is_friday and not check_data_completeness(conn, symbol, start_date, end_date, 'weekly')
+        records_added['daily'] += process_batch_data(daily_data, 'daily', conn, logger)
+        
+        # Weekly data (only on Fridays)
+        if is_friday:
+            api_calls['weekly'] += 1
+            weekly_data = download_batch_data(batch, start_date, end_date, '1wk')
             
-            if not need_daily and not need_weekly:
-                logger.log(f"Data is up to date for {symbol}\n")
-                continue
+            if weekly_data is None:
+                logger.log("Rate limit reached for weekly data. Stopping updates.")
+                break
                 
-            stock = yf.Ticker(symbol)
-            
-            if need_daily:
-                api_calls['daily'] += 1
-                daily_data = stock.history(start=start_date.strftime('%Y-%m-%d'),
-                                         end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
-                                         interval='1d')
-                
-                logger.log(f"Retrieved {len(daily_data)} daily records for {symbol}")
-                
-                if not daily_data.empty:
-                    daily_data['Symbol'] = symbol
-                    daily_data['TimeFrame'] = 'daily'
-                    daily_data.index = daily_data.index.strftime('%Y-%m-%d')
-                    daily_data.reset_index(inplace=True)
-                    daily_data.rename(columns={
-                        'Date': 'date',
-                        'Open': 'open',
-                        'High': 'high',
-                        'Low': 'low',
-                        'Close': 'close',
-                        'Volume': 'volume',
-                        'Dividends': 'dividends',
-                        'Stock Splits': 'stock_splits',
-                        'Symbol': 'symbol',
-                        'TimeFrame': 'timeframe'
-                    }, inplace=True)
-                    
-                    for _, row in daily_data.iterrows():
-                        if not check_existing_records(conn, symbol, row['date'], 'daily'):
-                            try:
-                                row.to_frame().T.to_sql('stock_prices', conn, if_exists='append', index=False)
-                                if verify_insertion(conn, symbol, row['date'], 'daily'):
-                                    records_added['daily'] += 1
-                                    logger.log(f"Successfully inserted daily record for {symbol} on {row['date']}")
-                            except Exception as e:
-                                logger.log(f"Error inserting daily record for {symbol} on {row['date']}: {str(e)}")
-            
-            if need_weekly:
-                api_calls['weekly'] += 1
-                weekly_data = stock.history(start=start_date.strftime('%Y-%m-%d'),
-                                          end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),
-                                          interval='1wk')
-                
-                logger.log(f"Retrieved {len(weekly_data)} weekly records for {symbol}")
-                
-                if not weekly_data.empty:
-                    weekly_data['Symbol'] = symbol
-                    weekly_data['TimeFrame'] = 'weekly'
-                    weekly_data.index = weekly_data.index.strftime('%Y-%m-%d')
-                    weekly_data.reset_index(inplace=True)
-                    weekly_data.rename(columns={
-                        'Date': 'date',
-                        'Open': 'open',
-                        'High': 'high',
-                        'Low': 'low',
-                        'Close': 'close',
-                        'Volume': 'volume',
-                        'Dividends': 'dividends',
-                        'Stock Splits': 'stock_splits',
-                        'Symbol': 'symbol',
-                        'TimeFrame': 'timeframe'
-                    }, inplace=True)
-                    
-                    for _, row in weekly_data.iterrows():
-                        if not check_existing_records(conn, symbol, row['date'], 'weekly'):
-                            try:
-                                row.to_frame().T.to_sql('stock_prices', conn, if_exists='append', index=False)
-                                if verify_insertion(conn, symbol, row['date'], 'weekly'):
-                                    records_added['weekly'] += 1
-                                    logger.log(f"Successfully inserted weekly record for {symbol} on {row['date']}")
-                            except Exception as e:
-                                logger.log(f"Error inserting weekly record for {symbol} on {row['date']}: {str(e)}")
-            
-            conn.commit()
-            time.sleep(0.2)
-        except Exception as e:
-            logger.log(f"Error processing {symbol}: {str(e)}")
-            continue
+            records_added['weekly'] += process_batch_data(weekly_data, 'weekly', conn, logger)
+        
+        conn.commit()
+        time.sleep(1)  # Respect rate limits
     
-    logger.log("Update Summary:")
+    # Log summary
+    logger.log("\nUpdate Summary:")
     logger.log(f"Daily records added: {records_added['daily']} (API calls: {api_calls['daily']})")
     logger.log(f"Weekly records added: {records_added['weekly']} (API calls: {api_calls['weekly']})")
     
@@ -243,7 +266,7 @@ def update_database(db_path, period='current'):
     cursor.execute("SELECT COUNT(*) FROM stock_prices WHERE timeframe = 'weekly'")
     total_weekly = cursor.fetchone()[0]
     
-    logger.log(f"Final Database State:")
+    logger.log(f"\nFinal Database State:")
     logger.log(f"Total daily records: {total_daily}")
     logger.log(f"Total weekly records: {total_weekly}")
     
@@ -252,6 +275,16 @@ def update_database(db_path, period='current'):
 
     return records_added['daily'] + records_added['weekly']
 
+
+
+# Keep existing helper functions (is_holiday, get_stocks_to_update, check_existing_records, 
+# verify_insertion, get_date_ranges, check_data_completeness) as they are
+
+if __name__ == "__main__":
+    DB_PATH = "static/stock_data.db"
+    update_database(DB_PATH, period='current', batch_size=20)
+
+'''
 if __name__ == "__main__":
     DB_PATH = "static/stock_data.db"
     
@@ -260,3 +293,4 @@ if __name__ == "__main__":
     
     # To update last week's data:
     #update_database(DB_PATH, period='last_week')
+'''
