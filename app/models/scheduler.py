@@ -102,8 +102,8 @@ class DBUpdateScheduler:
         #DB_PATH = "static/stock_data.db"
         #update_database(DB_PATH, period='current')
         # Launch subprocess
-        #subprocess.Popen([sys.executable, 'app/applications/update_db.py'])
-        subprocess.Popen([sys.executable, 'app/applications/run_schedule_jobs.py'])
+        subprocess.Popen([sys.executable, 'app/applications/update_db.py'])
+        #subprocess.Popen([sys.executable, 'app/applications/run_schedule_jobs.py'])
         
 
         # Add your database update logic here
