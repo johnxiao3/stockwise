@@ -58,9 +58,6 @@ services:
 networks:
   stockwise_network:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
 
 volumes:
   stockwise_data:
