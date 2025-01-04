@@ -15,7 +15,13 @@ RUN apt-get update && \
     cp /usr/share/zoneinfo/America/Chicago /etc/localtime && \
     echo "America/Chicago" > /etc/timezone && \
     dpkg-reconfigure -f noninteractive tzdata
+RUN apt-get update && \
+    apt-get install -y iputils-ping curl net-tools && \
+    rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    update-ca-certificates
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

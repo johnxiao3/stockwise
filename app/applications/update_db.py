@@ -135,7 +135,8 @@ def download_batch_data(symbols, start_date, end_date, interval):
             interval=interval,
             group_by='ticker',
             auto_adjust=False,
-            actions=True
+            actions=True,
+            verify=False
         )
         
         if data.empty:
@@ -143,7 +144,10 @@ def download_batch_data(symbols, start_date, end_date, interval):
             
         return data
     except Exception as e:
+        print(f"Full error details: {e.__class__.__name__}: {str(e)}")
         if "Too many requests" in str(e) or "429" in str(e):
+            return None
+        if "timezone" in str(e).lower():
             return None
         raise e
 
@@ -195,7 +199,7 @@ def process_batch_data(data, timeframe, conn, logger):
             
     return records_added
 
-def update_database(db_path, period='current', batch_size=20):
+def update_database(db_path, period='current', batch_size=5):
     """Update database with stock data for the specified period."""
     logger = LogManager('./static/logs/update_db.txt')
     conn = sqlite3.connect(db_path)
@@ -282,7 +286,7 @@ def update_database(db_path, period='current', batch_size=20):
 
 if __name__ == "__main__":
     DB_PATH = "static/stock_data.db"
-    update_database(DB_PATH, period='current', batch_size=20)
+    update_database(DB_PATH, period='current', batch_size=5)
 
 '''
 if __name__ == "__main__":
