@@ -12,7 +12,7 @@ services:
     image: stockwise
     container_name: stockwise-container
     ports:
-      - "8000:8000"
+      - "80:8000"
     volumes:
       - stockwise_data:/app/static
     environment:

@@ -1,5 +1,5 @@
 import sqlite3
-import os
+import os,sys
 #from .config import DB_PATH
 
 DB_PATH = 'static/stock_data.db'
@@ -157,10 +157,16 @@ def delete_stock_records(db_path, symbol):
 # Usage example:
 
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
     # print_table_structure('./static/stock_data.db')
 
-    success, message, counts = delete_stock_records('./static/stock_data.db', 'TMTCU')
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python script.py <stock_id>")
+        sys.exit(1)
+        
+    stock_id = sys.argv[1]
+    success, message, counts = delete_stock_records('./static/stock_data.db', stock_id)
     if success:
         print(f"Success: {message}")
         print(f"Deleted counts: {counts}")
