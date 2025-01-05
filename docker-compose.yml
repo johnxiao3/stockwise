@@ -62,6 +62,7 @@ services:
 networks:
   stockwise_network:
     driver: bridge
+    name: stockwise_network
 
 volumes:
   stockwise_data:
