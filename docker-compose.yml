@@ -1,3 +1,4 @@
+name: stockwise  # Add this at the top of the file
 version: '3'
 
 services:
