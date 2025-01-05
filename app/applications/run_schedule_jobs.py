@@ -30,4 +30,4 @@ if __name__ == "__main__":
     analyze_volume()
     combine_daily_emails()
 
-    #send_emails_to_all_subscribers()
+    send_emails_to_all_subscribers()
