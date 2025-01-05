@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Pull the latest changes from the repository
-#git pull
+git pull
 
 # Stop and remove the containers defined in the docker-compose file
 docker-compose down

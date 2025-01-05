@@ -9,7 +9,6 @@ services:
     container_name: stockwise-container
     ports:
       - "8000:8000"
-      - "443:443"
     volumes:
       - stockwise_data:/app/static
     environment:
@@ -20,55 +19,48 @@ services:
       - SMTP_HOST=smtp
       - SMTP_PORT=25
     restart: always
-    #networks:
-    #  - stockwise_network
-    network_mode: "host"
-    extra_hosts:
-      - "fc.yahoo.com:142.250.217.78"
-      - "query2.finance.yahoo.com:142.250.217.78"
-    dns:
-      - 8.8.8.8  # Google DNS
-      - 1.1.1.1  # Cloudflare DNS
+    networks:
+     - stockwise_network
 
 
   # Nginx reverse proxy
-  # nginx:
-  #   image: nginx:alpine
-  #   container_name: stockwise-nginx
-  #   environment:
-  #     - TZ=America/Chicago
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx/conf.d:/etc/nginx/conf.d:ro
-  #     - ./nginx/ssl:/etc/nginx/ssl:ro
-  #     - ./nginx/logs:/var/log/nginx
-  #   depends_on:
-  #     - stockwise
-  #   restart: always
-  #   networks:
-  #     - stockwise_network
+  nginx:
+    image: nginx:alpine
+    container_name: stockwise-nginx
+    environment:
+      - TZ=America/Chicago
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/logs:/var/log/nginx
+    depends_on:
+      - stockwise
+    restart: always
+    networks:
+      - stockwise_network
 
 
   # SMTP Service
-#   smtp:
-#     image: namshi/smtp
-#     container_name: stockwise-smtp
-#     environment:
-#       - HOSTNAME=tianshen.store
-#       - MAILNAME=tianshen.store
-#       - RELAY_NETWORKS=:0.0.0.0/0
-#       - RELAY_FROM_HOST=tianshen.store
-#       - START_TLS=yes
-#     ports:
-#       - "25:25"
-#     networks:
-#       - stockwise_network
+  smtp:
+    image: namshi/smtp
+    container_name: stockwise-smtp
+    environment:
+      - HOSTNAME=tianshen.store
+      - MAILNAME=tianshen.store
+      - RELAY_NETWORKS=:0.0.0.0/0
+      - RELAY_FROM_HOST=tianshen.store
+      - START_TLS=yes
+    ports:
+      - "25:25"
+    networks:
+      - stockwise_network
 
-# networks:
-#   stockwise_network:
-#     driver: bridge
+networks:
+  stockwise_network:
+    driver: bridge
 
 volumes:
   stockwise_data:

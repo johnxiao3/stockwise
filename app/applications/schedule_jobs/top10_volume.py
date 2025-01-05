@@ -4,6 +4,7 @@ import sqlite3
 import pandas as pd
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services import yfiance_local as yf
+from applications.schedule_jobs.url_configure import *
 from services.calculate_turnover_rate import get_latest_turnover_rate
 from datetime import datetime
 import pytz
@@ -111,7 +112,7 @@ def create_html_table(df):
     for _, row in df.iterrows():
         html += f'''
         <tr>
-            <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+            <td><a href="http://{BASE_URL}/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
             <td>{row['today_price']:.2f}</td>
             <td>{row['market_cap']/1e9:.2f}</td>
             <td>{row['today_volume']/1e6:.2f}</td>

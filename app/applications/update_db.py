@@ -32,6 +32,8 @@ def is_holiday(date):
     # Christmas Day
     if date.month == 12 and date.day == 25:
         return True
+    if date.month == 1 and date.day == 1:
+        return True
     return False
 
 def get_stocks_to_update(db_path):
@@ -135,9 +137,7 @@ def download_batch_data(symbols, start_date, end_date, interval):
             interval=interval,
             group_by='ticker',
             auto_adjust=False,
-            actions=True,
-            verify=False
-        )
+            actions=True        )
         
         if data.empty:
             return None

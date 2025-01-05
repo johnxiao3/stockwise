@@ -1,6 +1,8 @@
 import os,sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from services import yfiance_local as yf
+from applications.schedule_jobs.url_configure import *
+
 from services.calculate_turnover_rate import get_latest_turnover_rate
 import pandas as pd
 import sqlite3
@@ -59,7 +61,7 @@ def create_html_table_buypoint(df, title, filename):
     for _, row in df.iterrows():
         html += f'''
         <tr>
-            <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+            <td><a href="http://{BASE_URL}/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
             <td>{row['close_price']:.2f}</td>
             <td>{row['market_cap']:.2f}</td>
             <td>{row['volume']/1000000:.2f}</td>
@@ -297,7 +299,7 @@ def analyze_stocks(df):
         for _, row in top_10_turnover.iterrows():
             html_turnover += f'''
             <tr>
-                <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+                <td><a href="http://{BASE_URL}/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
                 <td>{row['close_price']:.2f}</td>
                 <td>{row['market_cap']:.2f}</td>
                 <td>{row['volume']/1000000:.2f}M</td>
@@ -333,7 +335,7 @@ def analyze_stocks(df):
         for _, row in top_10_rsi.iterrows():
             html_rsi += f'''
             <tr>
-                <td><a href="https://www.tianshen.store/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
+                <td><a href="http://{BASE_URL}/stock/{row['ticker']}" class="stock-link">{row['ticker']}</a></td>
                 <td>{row['close_price']:.2f}</td>
                 <td>{row['market_cap']:.2f}</td>
                 <td>{row['volume']/1000000:.2f}M</td>
