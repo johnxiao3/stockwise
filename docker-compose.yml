@@ -24,7 +24,13 @@ services:
       - SMTP_PORT=25
     restart: always
     networks:
-     - stockwise_network
+      stockwise_network:
+        aliases:
+          - stockwise.local
+    # Add these network options
+    dns_search: .
+    dns_opt:
+      - ndots:1
 
 
   # Nginx reverse proxy
