@@ -8,7 +8,6 @@ services:
       dockerfile: Dockerfile
     image: stockwise
     container_name: stockwise-container
-    network_mode: "bridge"  # Add this line
     ports:
       - "8000:8000"
     volumes:
