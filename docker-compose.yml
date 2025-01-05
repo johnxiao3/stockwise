@@ -25,23 +25,23 @@ services:
 
 
   # Nginx reverse proxy
-  nginx:
-    image: nginx:alpine
-    container_name: stockwise-nginx
-    environment:
-      - TZ=America/Chicago
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./nginx/logs:/var/log/nginx
-    depends_on:
-      - stockwise
-    restart: always
-    networks:
-      - stockwise_network
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: stockwise-nginx
+  #   environment:
+  #     - TZ=America/Chicago
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/conf.d:/etc/nginx/conf.d
+  #     - ./nginx/ssl:/etc/nginx/ssl:ro
+  #     - ./nginx/logs:/var/log/nginx
+  #   depends_on:
+  #     - stockwise
+  #   restart: always
+  #   networks:
+  #     - stockwise_network
 
 
   # SMTP Service
