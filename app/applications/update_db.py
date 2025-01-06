@@ -214,7 +214,7 @@ def update_database(db_path, period='current', batch_size=5):
     stocks_needing_update = []
     for symbol in stocks:
         need_daily = not check_data_completeness(conn, symbol, start_date, end_date, 'daily')
-        need_weekly = is_friday and not check_data_completeness(conn, symbol, start_date, end_date, 'weekly')
+        need_weekly = not check_data_completeness(conn, symbol, start_date, end_date, 'weekly')
         if need_daily or need_weekly:
             stocks_needing_update.append(symbol)
     
